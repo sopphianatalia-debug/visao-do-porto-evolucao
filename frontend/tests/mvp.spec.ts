@@ -147,3 +147,29 @@ test('sem serviços, mostra "serviços indisponíveis" e nenhum dado de exemplo'
   await page.goto('/#painel')
   await expect(page.getByRole('heading', { name: 'Serviços indisponíveis' })).toBeVisible()
 })
+
+test('revisão ao vivo vai para o serviço, exige revisor e aparece no histórico', async ({ page }) => {
+  await page.addInitScript(() => { sessionStorage.setItem('sem-demo', '1'); localStorage.removeItem('visao-do-porto.demo') })
+  let reviewed: Record<string, unknown> | null = null
+  const incident = () => ({ incident_id: 'INC-000001', ppe_type: 'helmet', severity: 'HIGH', status: 'OPEN', reason: 'helmet ausente',
+    rule_id: 'RULE-1', opened_at: '2026-11-23T14:32:00-03:00', duration_seconds: 5, source_cameras: ['CAM-PIER-01'], employee_id: 'F1',
+    ...(reviewed ? { review_status: 'CONFIRMED', reviewed_by: reviewed.reviewer, review_note: reviewed.note, reviewed_at: '2026-11-23T14:40:00-03:00' } : { review_status: 'PENDING' }) })
+  await page.route('**/api/epi/incident/incidents', r => r.fulfill({ json: [incident()] }))
+  await page.route('**/api/epi/incident/incidents/INC-000001/review', async r => {
+    reviewed = r.request().postDataJSON()
+    await r.fulfill({ json: incident() })
+  })
+  await page.route('**/api/epi/tracker/cameras', r => r.fulfill({ json: [{ camera_id: 'CAM-PIER-01', name: 'Píer 1', sector: 'PIER_BORDO', kind: 'INTERNA', active: true }] }))
+  await page.goto('/#alertas')
+  await page.getByRole('button', { name: /EPI ausente: capacete/i }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByLabel('Justificativa da revisão').fill('Sem capacete no vídeo.')
+  await dialog.getByRole('button', { name: 'Confirmar', exact: true }).click()
+  await expect(dialog.getByText('Informe o nome do revisor.')).toBeVisible()
+  await dialog.getByLabel('Revisor').fill('op.maria')
+  await dialog.getByRole('button', { name: 'Confirmar', exact: true }).click()
+  await expect(dialog).toBeHidden()
+  expect(reviewed).toMatchObject({ decision: 'CONFIRMED', note: 'Sem capacete no vídeo.', reviewer: 'op.maria' })
+  await page.goto('/#historico')
+  await expect(page.getByRole('button', { name: /EPI ausente: capacete/i })).toBeVisible()
+})

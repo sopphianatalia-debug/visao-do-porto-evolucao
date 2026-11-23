@@ -31,3 +31,9 @@ Base: https://github.com/diegovitor90/visao-do-porto @ 65c5f23 (17/11/2026). O o
 - **Incident — WebSocket:** `/api/v1/ws/incidents` (snapshot + eventos). 63 testes passam; verificado com servidor real.
 - **Front:** passa a escutar o WebSocket e relê na hora; a consulta de 3 s continua como reserva.
 - Pendente: a revisão do front ainda grava no navegador (próximo passo: enviar para `/review`); login (o revisor hoje é texto); evidência em imagem; WebSocket de saúde das câmeras; latitude/longitude nas câmeras; vídeo.
+
+## 5. Revisão gravada no serviço (23/11/2026)
+- Ao vivo, "Confirmar/Descartar/Evidência insuficiente" envia o parecer ao `POST /incidents/{id}/review` (decisão, justificativa e **revisor**, campo novo, obrigatório). O histórico e a fila passam a vir do serviço: a decisão aparece em qualquer computador.
+- A fila mostra os incidentes abertos; o histórico mostra os já revisados, mesmo que depois resolvidos.
+- Se o serviço recusar ou estiver fora, a janela mostra o motivo e nada é gravado no navegador. Em modo de exemplo (demo) a revisão continua local.
+- O nome do revisor é lembrado só no navegador (conveniência). Sem login, ele ainda é texto informado.

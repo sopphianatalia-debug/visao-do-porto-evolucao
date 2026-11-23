@@ -1,6 +1,6 @@
 export type Severity = 'critical' | 'attention'
 export type Decision = 'confirmed' | 'discarded' | 'insufficient'
-export type Review = { decision: Decision; note: string; reviewedAt: string }
+export type Review = { decision: Decision; note: string; reviewedAt: string; reviewer?: string }
 export type Reviews = Record<string, Review>
 export type Alert = {
   id: string; title: string; type: string; severity: Severity;

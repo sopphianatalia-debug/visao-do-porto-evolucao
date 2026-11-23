@@ -115,12 +115,14 @@ export function HistoryPage({ reviews, onOpen }: { reviews: Reviews; onOpen: Pic
   </>
 }
 
-export function ReviewDialog({ alert, review, onClose, onSave }: { alert: Alert; review?: Review; onClose: () => void; onSave: (id: string, review: Review) => void }) {
+export function ReviewDialog({ alert, review, onClose, onSave }: { alert: Alert; review?: Review; onClose: () => void; onSave: (id: string, review: Review) => Promise<string | void> | string | void }) {
   const { zoneName, mode } = useData()
   const live = mode === 'live'
   const dialog = useRef<HTMLDialogElement>(null)
   const noteField = useRef<HTMLTextAreaElement>(null)
   const [note, setNote] = useState(review?.note ?? '')
+  const [reviewer, setReviewer] = useState(() => { try { return localStorage.getItem('visao-do-porto.reviewer') ?? '' } catch { return '' } })
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   useEffect(() => {
     const node = dialog.current
@@ -133,9 +135,14 @@ export function ReviewDialog({ alert, review, onClose, onSave }: { alert: Alert;
     }
   }, [])
 
-  function save(decision: Decision) {
+  async function save(decision: Decision) {
     if (!note.trim()) { setError('Adicione uma justificativa para registrar a decisão.'); noteField.current?.focus(); return }
-    onSave(alert.id, { decision, note: note.trim(), reviewedAt: new Date().toISOString() })
+    if (live && !reviewer.trim()) { setError('Informe o nome do revisor.'); return }
+    setSaving(true)
+    const problem = await onSave(alert.id, { decision, note: note.trim(), reviewedAt: new Date().toISOString(), reviewer: reviewer.trim() || undefined })
+    setSaving(false)
+    if (problem) { setError(problem); return }
+    try { if (reviewer.trim()) localStorage.setItem('visao-do-porto.reviewer', reviewer.trim()) } catch { /* sem armazenamento */ }
     onClose()
   }
 
@@ -151,10 +158,11 @@ export function ReviewDialog({ alert, review, onClose, onSave }: { alert: Alert;
       <p className="image-caption">Cena ilustrativa. Não é uma evidência de ocorrência real.</p></>}
       <dl className="review-facts"><div><dt>Zona</dt><dd>{zoneName(alert.zone)}</dd></div><div><dt>Fonte</dt><dd>{alert.camera}</dd></div><div><dt>Registro</dt><dd>{live ? new Date().toLocaleDateString('pt-BR') : dateLabel} · {alert.time}</dd></div></dl>
       <div className="rule-box"><strong>{alert.rule}</strong><p>{alert.reason}</p></div>
-      {review ? <div className="saved-review"><Badge tone={review.decision === 'confirmed' ? 'clear' : 'neutral'}>{decisionLabels[review.decision]}</Badge><p>{review.note}</p><small>{new Date(review.reviewedAt).toLocaleString('pt-BR')} · Registro local de demonstração</small></div> :
-        <><label className="note-label" htmlFor="review-note">Justificativa da revisão</label><textarea ref={noteField} id="review-note" value={note} onChange={e => { setNote(e.target.value); setError('') }} aria-invalid={!!error} aria-describedby={error ? 'review-error' : undefined} maxLength={500} rows={3} placeholder="O que você observou na evidência?" />
+      {review ? <div className="saved-review"><Badge tone={review.decision === 'confirmed' ? 'clear' : 'neutral'}>{decisionLabels[review.decision]}</Badge><p>{review.note}</p><small>{new Date(review.reviewedAt).toLocaleString('pt-BR')}{review.reviewer ? ` · ${review.reviewer}` : ''} · {live ? 'Registrado no serviço de incidentes' : 'Registro local de demonstração'}</small></div> :
+        <><label className="note-label" htmlFor="review-reviewer">Revisor</label><input id="review-reviewer" className="text-input" value={reviewer} onChange={e => { setReviewer(e.target.value); setError('') }} maxLength={80} placeholder="Seu nome" autoComplete="name" />
+        <label className="note-label" htmlFor="review-note">Justificativa da revisão</label><textarea ref={noteField} id="review-note" value={note} onChange={e => { setNote(e.target.value); setError('') }} aria-invalid={!!error} aria-describedby={error ? 'review-error' : undefined} maxLength={500} rows={3} placeholder="O que você observou na evidência?" />
         {!!error && <div className="notice danger" role="alert" id="review-error"><CircleAlert size={17} />{error}</div>}</>}
     </div>
-    {!review && <div className="review-footer"><button className="button primary" onClick={() => save('confirmed')}>Confirmar</button><button className="button secondary" onClick={() => save('discarded')}>Descartar</button><button className="button secondary" onClick={() => save('insufficient')}>Evidência insuficiente</button></div>}
+    {!review && <div className="review-footer"><button className="button primary" disabled={saving} onClick={() => save('confirmed')}>Confirmar</button><button className="button secondary" disabled={saving} onClick={() => save('discarded')}>Descartar</button><button className="button secondary" disabled={saving} onClick={() => save('insufficient')}>Evidência insuficiente</button></div>}
   </dialog>
 }

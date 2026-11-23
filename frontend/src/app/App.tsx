@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Activity, ChevronRight, History, LayoutDashboard, Map, ScanLine, ShieldAlert } from 'lucide-react'
 import { AnalysisPage } from '../features/analysis/AnalysisPage'
 import { AlertsPage, Dashboard, HistoryPage, ReviewDialog, ZonesPage } from '../features/operations/Operations'
-import { DataGate, DataProvider } from '../features/operations/DataContext'
+import { DataGate, DataProvider, useData } from '../features/operations/DataContext'
+import { sendReview } from '../features/operations/live'
 import { readReviews, reviewKey, type Alert, type Review } from '../features/operations/model'
 
 const pages = [
@@ -20,8 +21,15 @@ const goTo = (id: string) => { location.hash = id }
 const goToZone = (id: string) => { goTo('alertas?zona=' + encodeURIComponent(id)) }
 
 export function App() {
+  return <DataProvider><Shell /></DataProvider>
+}
+
+function Shell() {
+  const { mode, reviews: serviceReviews, refresh } = useData()
+  const live = mode === 'live'
   const [{ page, zone }, setRoute] = useState(readRoute)
-  const [reviews, setReviews] = useState(readReviews)
+  const [localReviews, setReviews] = useState(readReviews)
+  const reviews = live ? serviceReviews : localReviews
   const [active, setActive] = useState<Alert | null>(null)
   const [feedback, setFeedback] = useState('')
   useEffect(() => {
@@ -30,14 +38,22 @@ export function App() {
     return () => window.removeEventListener('hashchange', handler)
   }, [])
 
-  function save(id: string, review: Review) {
-    const next = { ...reviews, [id]: review }
+  async function save(id: string, review: Review): Promise<string | void> {
+    if (live) {
+      // ao vivo: a decisão vai para o serviço de incidentes (guardada com revisor e horário)
+      try { await sendReview(id, review.decision, review.note, review.reviewer ?? '') }
+      catch (e) { return `Não foi possível registrar no serviço: ${e instanceof Error ? e.message : 'erro desconhecido'}` }
+      refresh()
+      setFeedback('Revisão registrada no serviço de incidentes.')
+      return
+    }
+    const next = { ...localReviews, [id]: review }
     setReviews(next)
     try { localStorage.setItem(reviewKey, JSON.stringify(next)); setFeedback('Revisão registrada neste navegador.') }
     catch { setFeedback('Revisão registrada apenas nesta sessão. Não foi possível salvar no navegador.') }
   }
 
-  return <DataProvider><div className="shell">
+  return <div className="shell">
     <a className="skip" href="#main-content" onClick={e => { e.preventDefault(); document.getElementById('main-content')?.focus() }}>Pular para o conteúdo</a>
     <aside className="sidebar">
       <a className="brand" href="#painel"><img src={import.meta.env.BASE_URL + 'porto.svg'} alt="" /><span><strong>Visão do Porto</strong><small>Central de operações</small></span></a>
@@ -58,5 +74,5 @@ export function App() {
     </div>
     {active && <ReviewDialog key={active.id} alert={active} review={reviews[active.id]} onClose={() => setActive(null)} onSave={save} />}
     <div className={feedback ? 'toast' : 'sr-only'} aria-live="polite">{feedback}</div>
-  </div></DataProvider>
+  </div>
 }

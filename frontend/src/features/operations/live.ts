@@ -1,6 +1,6 @@
 // Camada de dados "ao vivo": lê os serviços do EPI Vision (Incident :8004 e Tracker :8010)
 // pelo proxy do Vite. Se não responderem, o front volta aos dados simulados e avisa na tela.
-import type { Alert, Severity, Zone } from './model'
+import type { Alert, Decision, Review, Reviews, Severity, Zone } from './model'
 
 export const SECTORS: Record<string, { name: string; subtitle: string }> = {
   GRANEIS_SOLIDOS: { name: 'Granéis sólidos', subtitle: 'Operação de granéis sólidos' },
@@ -19,10 +19,33 @@ const ppeLabel = (t: string) => PPE_LABEL[t.toLowerCase()] ?? t
 type ApiIncident = {
   incident_id: string; ppe_type: string; severity: string; status: string; reason: string
   rule_id: string; opened_at: string; duration_seconds: number; source_cameras: string[]; employee_id: string | null
+  review_status?: string; reviewed_by?: string | null; reviewed_at?: string | null; review_note?: string | null
 }
 type ApiCamera = { camera_id: string; name: string; sector: string | null; kind: string; active: boolean }
 
-export type LiveData = { alerts: Alert[]; zones: Zone[]; cameras: ApiCamera[] }
+export type LiveData = { alerts: Alert[]; zones: Zone[]; cameras: ApiCamera[]; reviews: Reviews }
+
+const DECISION: Record<string, Decision> = { CONFIRMED: 'confirmed', DISMISSED: 'discarded', INSUFFICIENT_EVIDENCE: 'insufficient' }
+const API_DECISION: Record<Decision, string> = { confirmed: 'CONFIRMED', discarded: 'DISMISSED', insufficient: 'INSUFFICIENT_EVIDENCE' }
+
+export function reviewOf(i: ApiIncident): Review | undefined {
+  const decision = DECISION[i.review_status ?? '']
+  if (!decision || !i.reviewed_at) return undefined
+  return { decision, note: i.review_note ?? '', reviewedAt: i.reviewed_at, reviewer: i.reviewed_by ?? undefined }
+}
+
+/** Envia o parecer ao Incident. Lança erro com a mensagem do serviço se for recusado. */
+export async function sendReview(incidentId: string, decision: Decision, note: string, reviewer: string): Promise<void> {
+  const res = await fetch(`/api/epi/incident/incidents/${encodeURIComponent(incidentId)}/review`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ decision: API_DECISION[decision], note, reviewer }),
+  })
+  if (!res.ok) {
+    let detail = `erro ${res.status}`
+    try { const j = await res.json(); if (typeof j.detail === 'string') detail = j.detail } catch { /* mantém o código */ }
+    throw new Error(detail)
+  }
+}
 
 async function getJson<T>(url: string): Promise<T> {
   const ctl = new AbortController()
@@ -52,11 +75,15 @@ export function toAlert(i: ApiIncident, cameras: ApiCamera[]): Alert {
 
 export async function fetchLive(): Promise<LiveData> {
   const [incidents, cameras] = await Promise.all([
-    getJson<ApiIncident[]>('/api/epi/incident/incidents?status=OPEN'),
+    getJson<ApiIncident[]>('/api/epi/incident/incidents'),
     getJson<ApiCamera[]>('/api/epi/tracker/cameras'),
   ])
-  const alerts = incidents.map(i => toAlert(i, cameras))
+  // fila = incidentes abertos; histórico = os já revisados (mesmo que depois resolvidos)
+  const shown = incidents.filter(i => i.status === 'OPEN' || reviewOf(i))
+  const alerts = shown.map(i => toAlert(i, cameras))
+  const reviews: Reviews = {}
+  for (const i of shown) { const r = reviewOf(i); if (r) reviews[i.incident_id] = r }
   const zones: Zone[] = Object.entries(SECTORS).map(([id, s]) => ({ id, name: s.name, subtitle: s.subtitle, grid: '' }))
   if (alerts.some(a => a.zone === NO_SECTOR)) zones.push({ id: NO_SECTOR, name: 'Sem setor', subtitle: 'Câmera sem setor cadastrado', grid: '' })
-  return { alerts, zones, cameras }
+  return { alerts, zones, cameras, reviews }
 }

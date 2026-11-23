@@ -237,3 +237,4 @@ textarea { width:100%; padding:9px; resize:vertical; color:#eaf0f6; background:#
 .sector-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; padding:4px 0; }
 .sector-grid .map-caption { grid-column:1 / -1; }
 .sector-grid .zone { min-height:92px; position:static; }
+.text-input { width:100%; padding:9px; color:#eaf0f6; background:#0b121b; border:1px solid #3a4d62; border-radius:7px; margin-bottom:10px; }
