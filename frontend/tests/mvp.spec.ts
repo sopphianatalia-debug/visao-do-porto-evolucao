@@ -2,6 +2,11 @@ import { expect, test, type Page } from '@playwright/test'
 import { parseAnalysis } from '../src/features/analysis/api'
 import { resolve } from 'node:path'
 
+test.beforeEach(async ({ page }) => {
+  // Modo demo (dados de exemplo) só para os testes antigos; os novos limpam isso.
+  await page.addInitScript(() => { if (!sessionStorage.getItem('sem-demo')) localStorage.setItem('visao-do-porto.demo', '1') })
+})
+
 const endpoint = '**/api/v1/vision/analyze'
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aTKUAAAAASUVORK5CYII=', 'base64')
 const input = async (page: Page) => {
@@ -117,6 +122,7 @@ test('envia um PNG real para a FastAPI quando o teste de integração é habilit
 })
 
 test('com os serviços EPI Vision no ar, mostra incidentes e setores reais', async ({ page }) => {
+  await page.addInitScript(() => { sessionStorage.setItem('sem-demo', '1'); localStorage.removeItem('visao-do-porto.demo') })
   await page.route('**/api/epi/incident/incidents*', r => r.fulfill({ json: [
     { incident_id: 'INC-000001', ppe_type: 'helmet', severity: 'HIGH', status: 'OPEN', reason: 'helmet obrigatório e ausente',
       rule_id: 'RULE-PATIO-CARGA-001', opened_at: '2026-11-23T14:32:00-03:00', duration_seconds: 42, source_cameras: ['CAM-PIER-01'], employee_id: 'FUNC-1' }] }))
@@ -130,4 +136,14 @@ test('com os serviços EPI Vision no ar, mostra incidentes e setores reais', asy
   await expect(page.getByRole('button', { name: /EPI ausente: capacete/i })).toBeVisible()
   await page.goto('/#zonas')
   await expect(page.getByRole('button', { name: /Guarda portuária/i })).toBeVisible()
+})
+
+test('sem serviços, mostra "serviços indisponíveis" e nenhum dado de exemplo', async ({ page }) => {
+  await page.addInitScript(() => { sessionStorage.setItem('sem-demo', '1'); localStorage.removeItem('visao-do-porto.demo') })
+  await page.route('**/api/epi/**', r => r.abort())
+  await page.goto('/#alertas')
+  await expect(page.getByRole('heading', { name: 'Serviços indisponíveis' })).toBeVisible()
+  await expect(page.getByText(/Entrada em área restrita/i)).toHaveCount(0)
+  await page.goto('/#painel')
+  await expect(page.getByRole('heading', { name: 'Serviços indisponíveis' })).toBeVisible()
 })

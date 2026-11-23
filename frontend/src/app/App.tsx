@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Activity, ChevronRight, History, LayoutDashboard, Map, ScanLine, ShieldAlert } from 'lucide-react'
 import { AnalysisPage } from '../features/analysis/AnalysisPage'
 import { AlertsPage, Dashboard, HistoryPage, ReviewDialog, ZonesPage } from '../features/operations/Operations'
-import { DataProvider } from '../features/operations/DataContext'
+import { DataGate, DataProvider } from '../features/operations/DataContext'
 import { readReviews, reviewKey, type Alert, type Review } from '../features/operations/model'
 
 const pages = [
@@ -48,11 +48,11 @@ export function App() {
     <div className="workspace">
       <header className="topbar"><div className="breadcrumb"><span>Operação</span><ChevronRight size={14} /><strong>{page.label}</strong></div><span className="environment-label"><i aria-hidden="true" /> Ambiente de demonstração</span></header>
       <main className="content" tabIndex={-1} id="main-content">
-        {page.id === 'painel' && <Dashboard reviews={reviews} onOpen={setActive} onZone={goToZone} onNavigate={goTo} />}
+        {page.id === 'painel' && <DataGate><Dashboard reviews={reviews} onOpen={setActive} onZone={goToZone} onNavigate={goTo} /></DataGate>}
         {page.id === 'analisar' && <AnalysisPage />}
-        {page.id === 'alertas' && <AlertsPage key={zone} zone={zone} reviews={reviews} onOpen={setActive} />}
-        {page.id === 'zonas' && <ZonesPage onZone={goToZone} reviews={reviews} />}
-        {page.id === 'historico' && <HistoryPage reviews={reviews} onOpen={setActive} />}
+        {page.id === 'alertas' && <DataGate><AlertsPage key={zone} zone={zone} reviews={reviews} onOpen={setActive} /></DataGate>}
+        {page.id === 'zonas' && <DataGate><ZonesPage onZone={goToZone} reviews={reviews} /></DataGate>}
+        {page.id === 'historico' && <DataGate><HistoryPage reviews={reviews} onOpen={setActive} /></DataGate>}
         <div className="footer"><Activity size={14} /> Visão do Porto <span>·</span> Piloto de segurança assistida</div>
       </main>
     </div>
