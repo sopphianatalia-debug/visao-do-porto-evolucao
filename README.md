@@ -79,7 +79,7 @@ Com o ambiente e os pesos locais disponíveis:
 ```powershell
 cd backend/fastapi
 .\.venv\Scripts\python.exe -B -m pytest test_main.py -q -p no:cacheprovider
-.\.venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000
+.\.venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8100
 ```
 
 Se o terminal já estiver nessa pasta, não repetir o `cd`. Consultar `/api/health`,
@@ -90,7 +90,7 @@ Análise: `POST /api/v1/vision/analyze`, multipart com campo `file`, JPEG ou PNG
 até 5 MiB e 20 megapixels. Exemplo em outro terminal:
 
 ```powershell
-curl.exe -F "file=@C:/caminho/imagem-autorizada.png;type=image/png" http://127.0.0.1:8000/api/v1/vision/analyze
+curl.exe -F "file=@C:/caminho/imagem-autorizada.png;type=image/png" http://127.0.0.1:8100/api/v1/vision/analyze
 ```
 
 ### Pesos e reprodução da inferência
@@ -127,7 +127,7 @@ npm run dev
 ```
 
 Em ambiente novo, executar `npm ci` com autorização para baixar as dependências.
-Abrir `http://127.0.0.1:5173`. O proxy usa a FastAPI em `127.0.0.1:8000`;
+Abrir `http://127.0.0.1:5173`. O proxy usa a FastAPI em `127.0.0.1:8100`;
 `frontend/.env.example` documenta a variável `VISION_API_TARGET`.
 O proxy Vite não acompanha o build de produção. [Detalhes e testes](frontend/README.md).
 

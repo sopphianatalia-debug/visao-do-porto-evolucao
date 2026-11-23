@@ -11,3 +11,6 @@ Base: https://github.com/diegovitor90/visao-do-porto @ 65c5f23 (17/11/2026). O o
 - Testes novos em `TrabalhadorServiceTest`.
 - **Não validado por build:** a sandbox não alcança o Maven Central. Rodar `./mvnw test` em `backend/backend-springboot`.
 - Continua pendente: autenticação/perfis e persistência (H2 em memória).
+
+## 2. FastAPI — porta 8100 (23/11/2026)
+- A FastAPI de visão passa de `8000` para `8100` (README, `frontend/README.md`, `.env.example`, `vite.config.ts`), para não colidir com o `epi_ppe` do EPI Vision. Quem já define `VISION_API_TARGET` não é afetado.

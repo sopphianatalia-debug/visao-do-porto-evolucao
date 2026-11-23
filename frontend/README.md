@@ -23,11 +23,11 @@ Em outro terminal, a partir da raiz do repositório:
 
 ```powershell
 cd backend/fastapi
-.\.venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000
+.\.venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8100
 ```
 
 O ambiente Python e os pesos devem estar preparados conforme o [README principal](../README.md).
-O Vite encaminha `/api/v1/vision/*` diretamente para `http://127.0.0.1:8000`.
+O Vite encaminha `/api/v1/vision/*` diretamente para `http://127.0.0.1:8100`.
 Para outro destino, copiar `.env.example` para `.env.local`, ajustar
 `VISION_API_TARGET` e reiniciar o Vite. O upload é multipart, campo `file`.
 Esse proxy de desenvolvimento não é incluído no build de produção.
