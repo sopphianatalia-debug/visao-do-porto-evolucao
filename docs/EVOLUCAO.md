@@ -24,3 +24,10 @@ Base: https://github.com/diegovitor90/visao-do-porto @ 65c5f23 (17/11/2026). O o
 - Para ver ao vivo: subir `epi_incident` e `epi_tracker` do repositório `epi-vision-porto-itaqui` e rodar `npm run dev` em `frontend/`.
 
 - Atualização: a reserva automática com dados simulados foi removida; 11 testes passam (inclui o caso "serviços indisponíveis").
+
+## 4. Nosso lado (repositório epi-vision-porto-itaqui) — 23/11/2026
+- **Incident — revisão humana:** `POST /incidents/{id}/review` (`CONFIRMED`/`DISMISSED`/`INSUFFICIENT_EVIDENCE`), com justificativa e revisor obrigatórios e trilha `review_history`. Não altera `OPEN/RESOLVED`.
+- **Incident — persistência:** `INC_DB_PATH` liga SQLite; incidentes, revisões e idempotência sobrevivem a reinício.
+- **Incident — WebSocket:** `/api/v1/ws/incidents` (snapshot + eventos). 63 testes passam; verificado com servidor real.
+- **Front:** passa a escutar o WebSocket e relê na hora; a consulta de 3 s continua como reserva.
+- Pendente: a revisão do front ainda grava no navegador (próximo passo: enviar para `/review`); login (o revisor hoje é texto); evidência em imagem; WebSocket de saúde das câmeras; latitude/longitude nas câmeras; vídeo.

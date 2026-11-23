@@ -30,8 +30,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
     }
     tick()
-    const t = setInterval(tick, POLL_MS)
-    return () => { alive = false; clearInterval(t) }
+    const t = setInterval(tick, POLL_MS)   // reserva: continua consultando mesmo com o WebSocket
+    // WebSocket do Incident: qualquer evento dispara uma releitura imediata (sem esperar os 3 s).
+    let ws: WebSocket | undefined
+    let retry: ReturnType<typeof setTimeout> | undefined
+    const connect = () => {
+      try {
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+        ws = new WebSocket(`${proto}://${location.host}/api/epi/incident/ws/incidents`)
+        ws.onmessage = ev => { try { if (JSON.parse(ev.data).type !== 'SNAPSHOT') tick() } catch { /* ignora */ } }
+        ws.onclose = () => { if (alive) retry = setTimeout(connect, 5000) }
+        ws.onerror = () => ws?.close()
+      } catch { /* sem WebSocket: segue só com a consulta */ }
+    }
+    connect()
+    return () => { alive = false; clearInterval(t); clearTimeout(retry); ws?.close() }
   }, [])
   const value = useMemo<Data>(() => ({ ...data, zoneName: id => data.zones.find(z => z.id === id)?.name ?? id }), [data])
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
