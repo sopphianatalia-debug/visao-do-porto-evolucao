@@ -57,4 +57,50 @@ class TrabalhadorServiceTest {
 
         verify(repository, never()).save(any());
     }
+
+    @Test
+    void deveCadastrarComSetorECargo() {
+        when(repository.save(any(Trabalhador.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Trabalhador t = service.cadastrar(
+            "Maria Souza", "PORTO-002", "Operadora B", "pier_bordo", "Operadora de guindaste");
+
+        assertEquals(br.com.visaodoporto.backend.entity.SetorPortuario.PIER_BORDO, t.getSetor());
+        assertEquals("Operadora de guindaste", t.getCargo());
+    }
+
+    @Test
+    void naoDeveCadastrarSetorDesconhecido() {
+        assertThrows(IllegalArgumentException.class, () -> service.cadastrar(
+            "Maria Souza", "PORTO-002", "Operadora B", "SETOR_INVENTADO", null));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void devePermitirDesativarEReativar() {
+        Trabalhador t = new Trabalhador("João Silva", "PORTO-001", "Operadora A");
+        java.util.UUID id = java.util.UUID.randomUUID();
+        when(repository.findById(id)).thenReturn(java.util.Optional.of(t));
+        when(repository.save(any(Trabalhador.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertFalse(service.alterarAtivo(id, false).isAtivo());
+        assertTrue(service.alterarAtivo(id, true).isAtivo());
+    }
+
+    @Test
+    void deveAtualizarDadosMantendoMatricula() {
+        Trabalhador t = new Trabalhador("João Silva", "PORTO-001", "Operadora A");
+        java.util.UUID id = java.util.UUID.randomUUID();
+        when(repository.findById(id)).thenReturn(java.util.Optional.of(t));
+        when(repository.save(any(Trabalhador.class)))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Trabalhador r = service.atualizar(id, "João S. Lima", "Operadora C", "GUARDA_PORTUARIA", "Vigilante");
+
+        assertEquals("João S. Lima", r.getNome());
+        assertEquals("PORTO-001", r.getMatricula());
+        assertEquals("Vigilante", r.getCargo());
+    }
 }
