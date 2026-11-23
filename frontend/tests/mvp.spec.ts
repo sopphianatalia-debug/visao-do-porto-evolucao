@@ -173,3 +173,37 @@ test('revisão ao vivo vai para o serviço, exige revisor e aparece no históric
   await page.goto('/#historico')
   await expect(page.getByRole('button', { name: /EPI ausente: capacete/i })).toBeVisible()
 })
+
+test('câmeras do setor mostram sinal do Fusion e mudam por WebSocket', async ({ page }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem('sem-demo', '1'); localStorage.removeItem('visao-do-porto.demo')
+    // WebSocket falso do Fusion: o teste decide quando enviar mudanças
+    const Real = window.WebSocket
+    class Fake extends EventTarget {
+      onopen: ((e: Event) => void) | null = null; onmessage: ((e: MessageEvent) => void) | null = null
+      onclose: (() => void) | null = null; onerror: (() => void) | null = null
+      constructor(public url: string) {
+        super()
+        if (!url.includes('/fusion/ws/cameras')) { return new Real(url) as unknown as Fake }
+        ;(window as unknown as { __fusion: Fake }).__fusion = this
+        setTimeout(() => { this.onopen?.(new Event('open')); this.send_({ type: 'SNAPSHOT', cameras: [{ camera_id: 'CAM-PIER-01', status: 'ONLINE' }] }) }, 50)
+      }
+      send_(m: unknown) { this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(m) })) }
+      close() {}
+    }
+    ;(window as unknown as { WebSocket: unknown }).WebSocket = Fake
+  })
+  await page.route('**/api/epi/incident/incidents', r => r.fulfill({ json: [] }))
+  await page.route('**/api/epi/tracker/cameras', r => r.fulfill({ json: [
+    { camera_id: 'CAM-PIER-01', name: 'Píer 1', sector: 'PIER_BORDO', kind: 'INTERNA', active: true },
+    { camera_id: 'CAM-PIER-02', name: 'Píer 2', sector: 'PIER_BORDO', kind: 'ENTRADA', active: true }] }))
+  await page.route('**/api/epi/fusion/fusion/cameras/status', r => r.abort())
+  await page.goto('/#zonas')
+  await page.getByRole('button', { name: /Píer e bordo/i }).click()
+  const row = (n: string) => page.locator('.zone-cameras li', { hasText: n })
+  await expect(row('Píer 1').getByText('Online')).toBeVisible()
+  await expect(row('Píer 2').getByText('Sem dados')).toBeVisible()
+  await expect(page.getByText('1/2 câmeras online').first()).toBeVisible()
+  await page.evaluate(() => (window as unknown as { __fusion: { send_(m: unknown): void } }).__fusion.send_({ type: 'CAMERA_STATUS_CHANGED', camera_id: 'CAM-PIER-01', status: 'OFFLINE', previous_status: 'ONLINE' }))
+  await expect(row('Píer 1').getByText('Sem sinal')).toBeVisible()
+})

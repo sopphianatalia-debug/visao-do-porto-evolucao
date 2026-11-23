@@ -62,7 +62,7 @@ function Shell() {
       <div className="sidebar-bottom"><div className="sandbox-mark"><span className="site-indicator" aria-hidden="true" /><span><strong>Laboratório UNDB</strong><small>Piloto acadêmico</small></span></div></div>
     </aside>
     <div className="workspace">
-      <header className="topbar"><div className="breadcrumb"><span>Operação</span><ChevronRight size={14} /><strong>{page.label}</strong></div><span className="environment-label"><i aria-hidden="true" /> Ambiente de demonstração</span></header>
+      <header className="topbar"><div className="breadcrumb"><span>Operação</span><ChevronRight size={14} /><strong>{page.label}</strong></div><span className="environment-label"><i aria-hidden="true" /> {live ? 'Dados dos serviços EPI Vision' : 'Ambiente de demonstração'}</span></header>
       <main className="content" tabIndex={-1} id="main-content">
         {page.id === 'painel' && <DataGate><Dashboard reviews={reviews} onOpen={setActive} onZone={goToZone} onNavigate={goTo} /></DataGate>}
         {page.id === 'analisar' && <AnalysisPage />}

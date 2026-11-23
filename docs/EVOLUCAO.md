@@ -37,3 +37,10 @@ Base: https://github.com/diegovitor90/visao-do-porto @ 65c5f23 (17/11/2026). O o
 - A fila mostra os incidentes abertos; o histórico mostra os já revisados, mesmo que depois resolvidos.
 - Se o serviço recusar ou estiver fora, a janela mostra o motivo e nada é gravado no navegador. Em modo de exemplo (demo) a revisão continua local.
 - O nome do revisor é lembrado só no navegador (conveniência). Sem login, ele ainda é texto informado.
+
+## 6. Lat/long nas câmeras e saúde das câmeras por WebSocket (23/11/2026)
+- **Tracker:** câmeras aceitam `latitude`/`longitude` opcionais (juntas, dentro dos limites); campos novos na tela *Gerenciar câmeras* do Tracker. Câmeras antigas continuam carregando. 75 testes.
+- **Fusion:** `GET /fusion/cameras/status` e `ws://.../fusion/ws/cameras` (`ONLINE`/`OFFLINE` por câmera, snapshot + mudanças; padrão: sem observação há 30 s = sem sinal). 69 testes.
+- **Front (Zonas):** cada setor mostra "N/M câmeras online"; o detalhe lista as câmeras do setor com **Online / Sem sinal / Sem dados / Desconhecido**. Atualiza por WebSocket; só consulta por REST quando o WebSocket está fechado. "Sem sinal" não indica violação.
+- Verificado ponta a ponta com Incident, Tracker e Fusion reais e o proxy do Vite (online → sem sinal após silêncio → online de novo).
+- Proxy novo: `/api/epi/fusion` → `:8002` (`EPI_FUSION_TARGET`).

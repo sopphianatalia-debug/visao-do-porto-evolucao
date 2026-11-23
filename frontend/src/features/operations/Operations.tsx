@@ -5,6 +5,14 @@ import { Evidence, labImage } from '../analysis/Evidence'
 import { useData } from './DataContext'
 import { dateLabel, decisionLabels, severityLabels, type Alert, type Decision, type Review, type Reviews, type Severity } from './model'
 
+type CamState = 'ONLINE' | 'OFFLINE' | 'SEM_DADOS' | 'DESCONHECIDO'
+const camLabels: Record<CamState, [string, 'clear' | 'attention' | 'neutral']> = {
+  ONLINE: ['Online', 'clear'], OFFLINE: ['Sem sinal', 'attention'], SEM_DADOS: ['Sem dados', 'neutral'], DESCONHECIDO: ['Desconhecido', 'neutral'],
+}
+const camState = (id: string, signals: Record<string, string>, known: boolean): CamState =>
+  !known ? 'DESCONHECIDO' : signals[id] === 'ONLINE' ? 'ONLINE' : signals[id] === 'OFFLINE' ? 'OFFLINE' : 'SEM_DADOS'
+const inSector = (c: { sector: string | null }, zoneId: string) => (c.sector ?? 'SEM_SETOR') === zoneId
+
 const zoneTones = { clear: 'Sem pendência', risk: 'Crítico', watch: 'Atenção' } as const
 type Pick = (alert: Alert) => void
 type ZonePick = (id: string) => void
@@ -26,13 +34,19 @@ export function AlertRows({ rows, reviews, onOpen }: { rows: Alert[]; reviews: R
 }
 
 export function LabMap({ onZone, selected, reviews }: { onZone: ZonePick; selected?: string; reviews: Reviews }) {
-  const { alerts, zones, mode } = useData()
+  const { alerts, zones, mode, cameras, signals, signalsKnown } = useData()
   const live = mode === 'live'
+  const camLine = (zoneId: string) => {
+    const cams = cameras.filter(c => c.active && inSector(c, zoneId))
+    if (!live || !cams.length) return ''
+    if (!signalsKnown) return `${cams.length} câmera${cams.length > 1 ? 's' : ''}`
+    return `${cams.filter(c => camState(c.camera_id, signals, true) === 'ONLINE').length}/${cams.length} câmeras online`
+  }
   return <>
     <div className={live ? 'sector-grid' : 'map-layout'} aria-label={live ? 'Setores do porto' : 'Mapa ilustrativo com quatro zonas do laboratório'}>
       <div className="map-caption"><span>{live ? 'SETORES DO PORTO' : 'PLANTA ESQUEMÁTICA'}</span><span>{live ? 'AO VIVO' : 'LAB-01'} <Crosshair size={14} /></span></div>
       {zones.map((z, i) => <button key={z.id} className={`zone zone-${zoneTone(alerts, z.id, reviews)} ${live ? '' : 'map-' + z.grid}`} onClick={() => onZone(z.id)} aria-pressed={selected === z.id}>
-        <span className="zone-code">{live ? 'S0' : 'Z0'}{i + 1}<i aria-hidden="true" /></span><strong>{z.name}</strong><small>{z.subtitle}</small><span className="sr-only">{zoneTones[zoneTone(alerts, z.id, reviews)]}</span>
+        <span className="zone-code">{live ? 'S0' : 'Z0'}{i + 1}<i aria-hidden="true" /></span><strong>{z.name}</strong><small>{z.subtitle}</small>{camLine(z.id) && <small>{camLine(z.id)}</small>}<span className="sr-only">{zoneTones[zoneTone(alerts, z.id, reviews)]}</span>
       </button>)}
     </div>
     <div className="map-legend"><span>ESTADO DAS ZONAS</span><Badge tone="clear">Sem pendência</Badge><Badge tone="attention">Atenção</Badge><Badge tone="critical">Crítico</Badge></div>
@@ -93,7 +107,7 @@ export function AlertsPage({ zone, reviews, onOpen }: { zone: string; reviews: R
 }
 
 export function ZonesPage({ onZone, reviews }: { onZone: ZonePick; reviews: Reviews }) {
-  const { alerts, zones, mode } = useData()
+  const { alerts, zones, mode, cameras, signals, signalsKnown } = useData()
   const live = mode === 'live'
   const [selected, setSelected] = useState(zones[0].id)
   const z = zones.find(v => v.id === selected) ?? zones[0]
@@ -101,7 +115,12 @@ export function ZonesPage({ onZone, reviews }: { onZone: ZonePick; reviews: Revi
   return <>
     <header className="page-intro"><div className="eyebrow"><Layers3 size={17} /> CONFIGURAÇÃO</div><h1>Zonas</h1><p>{live ? 'Setores do porto com os incidentes abertos. O mapa geográfico e os limites de cada setor ainda dependem de dados externos.' : 'Planta ilustrativa do piloto. A edição de polígonos e a avaliação de regras ainda não estão ligadas ao backend.'}</p></header>
     <div className="board"><section className="panel map-panel"><div className="panel-head"><div><h2>{live ? 'Setores' : 'Mapa do laboratório'}</h2><p>Selecione uma área para ver os incidentes.</p></div><Badge tone="cyan">{live ? 'Ao vivo' : 'Simulação'}</Badge></div><LabMap selected={selected} onZone={setSelected} reviews={reviews} /></section>
-    <section className="panel zone-info"><div className="panel-head"><h2>Detalhe da zona</h2><MapPin size={18} /></div><div className="zone-detail"><Badge tone={tone === 'risk' ? 'critical' : tone === 'watch' ? 'attention' : 'clear'}>{zoneTones[tone]}</Badge><h3>{z.name}</h3><p>{z.subtitle}{live ? '' : ' · LAB-01'}</p><button className="button secondary" onClick={() => onZone(z.id)}>Ver alertas da zona <ArrowRight size={17} /></button></div></section></div>
+    <section className="panel zone-info"><div className="panel-head"><h2>Detalhe da zona</h2><MapPin size={18} /></div><div className="zone-detail"><Badge tone={tone === 'risk' ? 'critical' : tone === 'watch' ? 'attention' : 'clear'}>{zoneTones[tone]}</Badge><h3>{z.name}</h3><p>{z.subtitle}{live ? '' : ' · LAB-01'}</p><button className="button secondary" onClick={() => onZone(z.id)}>Ver alertas da zona <ArrowRight size={17} /></button>
+      {live && <div className="zone-cameras"><h4>Câmeras</h4>
+        {cameras.filter(c => c.active && inSector(c, z.id)).length === 0 ? <p>Nenhuma câmera cadastrada neste setor.</p> :
+          <ul>{cameras.filter(c => c.active && inSector(c, z.id)).map(c => { const [label, tone] = camLabels[camState(c.camera_id, signals, signalsKnown)]; return <li key={c.camera_id}><span>{c.name} <small>({c.camera_id})</small></span><Badge tone={tone}>{label}</Badge></li> })}</ul>}
+        <small>{signalsKnown ? 'Sem sinal significa que a câmera parou de enviar dados; não indica violação.' : 'Não foi possível ler o estado das câmeras (Fusion indisponível).'}</small></div>}
+      </div></section></div>
   </>
 }
 

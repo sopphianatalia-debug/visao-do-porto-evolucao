@@ -21,7 +21,7 @@ type ApiIncident = {
   rule_id: string; opened_at: string; duration_seconds: number; source_cameras: string[]; employee_id: string | null
   review_status?: string; reviewed_by?: string | null; reviewed_at?: string | null; review_note?: string | null
 }
-type ApiCamera = { camera_id: string; name: string; sector: string | null; kind: string; active: boolean }
+export type ApiCamera = { camera_id: string; name: string; sector: string | null; kind: string; active: boolean }
 
 export type LiveData = { alerts: Alert[]; zones: Zone[]; cameras: ApiCamera[]; reviews: Reviews }
 
@@ -71,6 +71,13 @@ export function toAlert(i: ApiIncident, cameras: ApiCamera[]): Alert {
     zone: sector, camera: camId, time: hhmm(i.opened_at),
     rule: i.rule_id, reason: i.reason || 'Violação confirmada pelo Rules Engine.',
   }
+}
+
+export type CameraSignal = 'ONLINE' | 'OFFLINE'
+/** Estado de sinal vindo do Fusion. Lança erro se o Fusion não responder (a tela mostra "desconhecido"). */
+export async function fetchCameraSignals(): Promise<Record<string, CameraSignal>> {
+  const r = await getJson<{ cameras: { camera_id: string; status: CameraSignal }[] }>('/api/epi/fusion/fusion/cameras/status')
+  return Object.fromEntries(r.cameras.map(c => [c.camera_id, c.status]))
 }
 
 export async function fetchLive(): Promise<LiveData> {
