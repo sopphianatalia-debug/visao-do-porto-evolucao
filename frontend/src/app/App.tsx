@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Activity, ChevronRight, History, LayoutDashboard, Map, ScanLine, ShieldAlert } from 'lucide-react'
 import { AnalysisPage } from '../features/analysis/AnalysisPage'
 import { AlertsPage, Dashboard, HistoryPage, ReviewDialog, ZonesPage } from '../features/operations/Operations'
+import { DataProvider } from '../features/operations/DataContext'
 import { readReviews, reviewKey, type Alert, type Review } from '../features/operations/model'
 
 const pages = [
@@ -36,7 +37,7 @@ export function App() {
     catch { setFeedback('Revisão registrada apenas nesta sessão. Não foi possível salvar no navegador.') }
   }
 
-  return <div className="shell">
+  return <DataProvider><div className="shell">
     <a className="skip" href="#main-content" onClick={e => { e.preventDefault(); document.getElementById('main-content')?.focus() }}>Pular para o conteúdo</a>
     <aside className="sidebar">
       <a className="brand" href="#painel"><img src={import.meta.env.BASE_URL + 'porto.svg'} alt="" /><span><strong>Visão do Porto</strong><small>Central de operações</small></span></a>
@@ -57,5 +58,5 @@ export function App() {
     </div>
     {active && <ReviewDialog key={active.id} alert={active} review={reviews[active.id]} onClose={() => setActive(null)} onSave={save} />}
     <div className={feedback ? 'toast' : 'sr-only'} aria-live="polite">{feedback}</div>
-  </div>
+  </div></DataProvider>
 }

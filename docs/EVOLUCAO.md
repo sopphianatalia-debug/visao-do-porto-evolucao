@@ -14,3 +14,11 @@ Base: https://github.com/diegovitor90/visao-do-porto @ 65c5f23 (17/11/2026). O o
 
 ## 2. FastAPI — porta 8100 (23/11/2026)
 - A FastAPI de visão passa de `8000` para `8100` (README, `frontend/README.md`, `.env.example`, `vite.config.ts`), para não colidir com o `epi_ppe` do EPI Vision. Quem já define `VISION_API_TARGET` não é afetado.
+
+## 3. Front — ligado aos serviços EPI Vision (23/11/2026)
+- Nova camada de dados (`features/operations/live.ts` + `DataContext.tsx`): consulta a cada 3 s o **Incident (:8004)** e o **Tracker (:8010)** pelo proxy do Vite (`/api/epi/incident`, `/api/epi/tracker`; alvos configuráveis por `EPI_INCIDENT_TARGET` e `EPI_TRACKER_TARGET`).
+- **Ao vivo:** incidentes abertos viram a fila de alertas ("EPI ausente: capacete"), o setor vem do cadastro de câmeras do Tracker, e a página Zonas mostra os 6 setores do porto com estado por pendência. Incidente de câmera sem setor cai em "Sem setor".
+- **Sem serviços:** o front volta sozinho para os dados simulados antigos e rotula como simulação. Nunca mistura os dois.
+- Limites conhecidos: a revisão ainda é salva no navegador (o Incident não tem estados de revisão); a evidência em imagem não existe nos serviços; só incidentes `OPEN` são listados, então uma revisão some do histórico quando o incidente é resolvido. Os três pontos entram nas fases de persistência/revisão.
+- Teste novo (Playwright, com respostas simuladas dos serviços). 10 testes passam.
+- Para ver ao vivo: subir `epi_incident` e `epi_tracker` do repositório `epi-vision-porto-itaqui` e rodar `npm run dev` em `frontend/`.

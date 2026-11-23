@@ -115,3 +115,19 @@ test('envia um PNG real para a FastAPI quando o teste de integração é habilit
   await page.getByRole('button', { name: 'Enviar para análise' }).click()
   await expect(page.getByText('Imagem validada. A API ainda não executou inferência.')).toBeVisible()
 })
+
+test('com os serviços EPI Vision no ar, mostra incidentes e setores reais', async ({ page }) => {
+  await page.route('**/api/epi/incident/incidents*', r => r.fulfill({ json: [
+    { incident_id: 'INC-000001', ppe_type: 'helmet', severity: 'HIGH', status: 'OPEN', reason: 'helmet obrigatório e ausente',
+      rule_id: 'RULE-PATIO-CARGA-001', opened_at: '2026-11-23T14:32:00-03:00', duration_seconds: 42, source_cameras: ['CAM-PIER-01'], employee_id: 'FUNC-1' }] }))
+  await page.route('**/api/epi/tracker/cameras', r => r.fulfill({ json: [
+    { camera_id: 'CAM-PIER-01', name: 'Píer 1', sector: 'PIER_BORDO', kind: 'INTERNA', active: true }] }))
+  await page.goto('/#alertas')
+  await expect(page.getByText('Ao vivo').first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /EPI ausente: capacete/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /EPI ausente: capacete.*Píer e bordo/i })).toBeVisible()
+  await page.getByLabel('Zona', { exact: true }).selectOption('PIER_BORDO')
+  await expect(page.getByRole('button', { name: /EPI ausente: capacete/i })).toBeVisible()
+  await page.goto('/#zonas')
+  await expect(page.getByRole('button', { name: /Guarda portuária/i })).toBeVisible()
+})

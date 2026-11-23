@@ -30,12 +30,12 @@ export function readReviews(): Reviews {
     const raw: unknown = JSON.parse(localStorage.getItem(reviewKey) ?? '{}')
     if (!raw || typeof raw !== 'object') return {}
     const safe: Reviews = {}
-    for (const a of alerts) {
-      const row = (raw as Record<string, unknown>)[a.id]
+    for (const id of Object.keys(raw as Record<string, unknown>)) {
+      const row = (raw as Record<string, unknown>)[id]
       if (!row || typeof row !== 'object') continue
       const item = row as Partial<Review>
       if (item.decision && Object.hasOwn(decisionLabels, item.decision) && typeof item.note === 'string' && typeof item.reviewedAt === 'string') {
-        safe[a.id] = { decision: item.decision, note: item.note, reviewedAt: item.reviewedAt }
+        safe[id] = { decision: item.decision, note: item.note, reviewedAt: item.reviewedAt }
       }
     }
     return safe
