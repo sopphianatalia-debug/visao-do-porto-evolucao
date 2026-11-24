@@ -139,6 +139,7 @@ export function HistoryPage({ reviews, onOpen }: { reviews: Reviews; onOpen: Pic
 export function ReviewDialog({ alert, review, onClose, onSave }: { alert: Alert; review?: Review; onClose: () => void; onSave: (id: string, review: Review) => Promise<string | void> | string | void }) {
   const { zoneName, mode, session } = useData()
   const live = mode === 'live'
+  const readOnly = live && session?.role === 'OPERADOR'   // quem decide é o supervisor
   const dialog = useRef<HTMLDialogElement>(null)
   const noteField = useRef<HTMLTextAreaElement>(null)
   const [note, setNote] = useState(review?.note ?? '')
@@ -179,13 +180,14 @@ export function ReviewDialog({ alert, review, onClose, onSave }: { alert: Alert;
       <p className="image-caption">Cena ilustrativa. Não é uma evidência de ocorrência real.</p></>}
       <dl className="review-facts"><div><dt>Zona</dt><dd>{zoneName(alert.zone)}</dd></div><div><dt>Fonte</dt><dd>{alert.camera}</dd></div><div><dt>Registro</dt><dd>{live ? new Date().toLocaleDateString('pt-BR') : dateLabel} · {alert.time}</dd></div></dl>
       <div className="rule-box"><strong>{alert.rule}</strong><p>{alert.reason}</p></div>
+      {readOnly && !review && <p className="reviewer-line" data-testid="operator-note"><strong>Somente leitura.</strong> A decisão (confirmar, descartar ou evidência insuficiente) é do supervisor.</p>}
       {review ? <div className="saved-review"><Badge tone={review.decision === 'confirmed' ? 'clear' : 'neutral'}>{decisionLabels[review.decision]}</Badge><p>{review.note}</p><small>{new Date(review.reviewedAt).toLocaleString('pt-BR')}{review.reviewer ? ` · ${review.reviewer}` : ''} · {live ? 'Registrado no serviço de incidentes' : 'Registro local de demonstração'}</small></div> :
-        <>{session
+        <>{readOnly ? null : session
           ? <p className="reviewer-line"><strong>Revisor:</strong> {session.name} <small>({roleLabel[session.role]})</small></p>
           : <><label className="note-label" htmlFor="review-reviewer">Revisor</label><input id="review-reviewer" className="text-input" value={reviewer} onChange={e => { setReviewer(e.target.value); setError('') }} maxLength={80} placeholder="Seu nome" autoComplete="name" /></>}
-        <label className="note-label" htmlFor="review-note">Justificativa da revisão</label><textarea ref={noteField} id="review-note" value={note} onChange={e => { setNote(e.target.value); setError('') }} aria-invalid={!!error} aria-describedby={error ? 'review-error' : undefined} maxLength={500} rows={3} placeholder="O que você observou na evidência?" />
+        {!readOnly && <><label className="note-label" htmlFor="review-note">Justificativa da revisão</label><textarea ref={noteField} id="review-note" value={note} onChange={e => { setNote(e.target.value); setError('') }} aria-invalid={!!error} aria-describedby={error ? 'review-error' : undefined} maxLength={500} rows={3} placeholder="O que você observou na evidência?" /></>}
         {!!error && <div className="notice danger" role="alert" id="review-error"><CircleAlert size={17} />{error}</div>}</>}
     </div>
-    {!review && <div className="review-footer"><button className="button primary" disabled={saving} onClick={() => save('confirmed')}>Confirmar</button><button className="button secondary" disabled={saving} onClick={() => save('discarded')}>Descartar</button><button className="button secondary" disabled={saving} onClick={() => save('insufficient')}>Evidência insuficiente</button></div>}
+    {!review && !readOnly && <div className="review-footer"><button className="button primary" disabled={saving} onClick={() => save('confirmed')}>Confirmar</button><button className="button secondary" disabled={saving} onClick={() => save('discarded')}>Descartar</button><button className="button secondary" disabled={saving} onClick={() => save('insufficient')}>Evidência insuficiente</button></div>}
   </dialog>
 }

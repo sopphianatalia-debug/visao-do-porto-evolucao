@@ -64,3 +64,8 @@ Base: https://github.com/diegovitor90/visao-do-porto @ 65c5f23 (17/11/2026). O o
 - O recorte leva a caixa da pessoa (contorno tracejado) e um resumo por EPI: presente, ausente ou não visível (não ver != faltar). Ausente não tem posição na imagem, então não se desenha caixa inventada.
 - O Incident aceita `findings` (opcional, até 10) e migra bancos antigos; rodado no Mac com webcam e YOLO do projeto: imagem aparece na revisão.
 - O rodapé do painel agora diz que a revisão é registrada no serviço.
+
+### 8.2 Quem decide: só o supervisor
+- Com login, só o SUPERVISOR confirma, descarta ou marca evidência insuficiente (o operador recebe 403 no serviço e não vê os botões na tela).
+- O OPERADOR acompanha em leitura: fila de incidentes e evidência dos que ainda estão pendentes. Depois da decisão do supervisor, a imagem some para o operador.
+- Próximos passos combinados: vídeo ao vivo sob demanda só para o supervisor (sem gravar, com registro de acesso) e aviso ativo quando um incidente abre.

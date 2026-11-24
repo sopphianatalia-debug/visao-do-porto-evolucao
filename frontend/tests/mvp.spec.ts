@@ -222,7 +222,7 @@ test('com login exigido: pede usuário e senha, usa o usuário do token e mostra
   await page.route('**/api/epi/auth/auth/login', async r => {
     const b = r.request().postDataJSON()
     if (b.password !== 'senha-boa-1') return r.fulfill({ status: 401, json: { detail: 'usuário ou senha inválidos' } })
-    await r.fulfill({ json: { access_token: 'TOKEN-OK', token_type: 'bearer', expires_in: 28800, user: { username: 'bruno', name: 'Bruno Alves', role: 'OPERADOR', active: true } } })
+    await r.fulfill({ json: { access_token: 'TOKEN-OK', token_type: 'bearer', expires_in: 28800, user: { username: 'bruno', name: 'Bruno Alves', role: 'SUPERVISOR', active: true } } })
   })
   await page.goto('/#alertas')
   await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible()
@@ -278,4 +278,23 @@ test('evidência: mostra o recorte com caixas por cima (com login), e avisa quan
   await page.getByRole('dialog').getByRole('button', { name: 'Fechar detalhes' }).click()
   await open('INC-000003')
   await expect(page.getByRole('dialog').getByText(/apagada pelo prazo de retenção/)).toBeVisible()
+})
+
+
+test('operador acompanha em somente leitura: sem justificativa nem botões de decisão', async ({ page }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem('sem-demo', '1'); localStorage.removeItem('visao-do-porto.demo')
+    sessionStorage.setItem('visao-do-porto.session.v1', JSON.stringify({ token: 'TOKEN-OP', username: 'bia', name: 'Bia Operadora', role: 'OPERADOR' }))
+  })
+  await page.route('**/api/epi/incident/incidents', r => r.fulfill({ json: [{ incident_id: 'INC-000001', ppe_type: 'helmet', severity: 'HIGH', status: 'OPEN', reason: 'x', rule_id: 'R',
+    opened_at: '2026-11-23T14:32:00-03:00', duration_seconds: 1, source_cameras: ['CAM-PIER-01'], employee_id: 'F1', review_status: 'PENDING' }] }))
+  await page.route('**/api/epi/tracker/cameras', r => r.fulfill({ json: [] }))
+  await page.route('**/api/epi/incident/incidents/INC-000001/evidence', r => r.fulfill({ json: [] }))
+  await page.goto('/#alertas')
+  await page.getByRole('button', { name: /EPI ausente: capacete/i }).click()
+  const d = page.getByRole('dialog')
+  await expect(d.getByTestId('operator-note')).toBeVisible()
+  await expect(d.getByLabel('Justificativa da revisão')).toHaveCount(0)
+  await expect(d.getByRole('button', { name: 'Confirmar', exact: true })).toHaveCount(0)
+  await expect(d.getByRole('button', { name: 'Descartar' })).toHaveCount(0)
 })
