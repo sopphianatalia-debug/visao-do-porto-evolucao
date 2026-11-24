@@ -180,7 +180,7 @@ export function ReviewDialog({ alert, review, onClose, onSave }: { alert: Alert;
       <p className="image-caption">Cena ilustrativa. Não é uma evidência de ocorrência real.</p></>}
       <dl className="review-facts"><div><dt>Zona</dt><dd>{zoneName(alert.zone)}</dd></div><div><dt>Fonte</dt><dd>{alert.camera}</dd></div><div><dt>Registro</dt><dd>{live ? new Date().toLocaleDateString('pt-BR') : dateLabel} · {alert.time}</dd></div></dl>
       <div className="rule-box"><strong>{alert.rule}</strong><p>{alert.reason}</p></div>
-      {readOnly && !review && <p className="reviewer-line" data-testid="operator-note"><strong>Somente leitura.</strong> A decisão (confirmar, descartar ou evidência insuficiente) é do supervisor.</p>}
+      {readOnly && !review && <p className="reviewer-line" data-testid="operator-note"><strong>Somente leitura.</strong></p>}
       {review ? <div className="saved-review"><Badge tone={review.decision === 'confirmed' ? 'clear' : 'neutral'}>{decisionLabels[review.decision]}</Badge><p>{review.note}</p><small>{new Date(review.reviewedAt).toLocaleString('pt-BR')}{review.reviewer ? ` · ${review.reviewer}` : ''} · {live ? 'Registrado no serviço de incidentes' : 'Registro local de demonstração'}</small></div> :
         <>{readOnly ? null : session
           ? <p className="reviewer-line"><strong>Revisor:</strong> {session.name} <small>({roleLabel[session.role]})</small></p>
