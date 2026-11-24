@@ -207,3 +207,41 @@ test('câmeras do setor mostram sinal do Fusion e mudam por WebSocket', async ({
   await page.evaluate(() => (window as unknown as { __fusion: { send_(m: unknown): void } }).__fusion.send_({ type: 'CAMERA_STATUS_CHANGED', camera_id: 'CAM-PIER-01', status: 'OFFLINE', previous_status: 'ONLINE' }))
   await expect(row('Píer 1').getByText('Sem sinal')).toBeVisible()
 })
+
+test('com login exigido: pede usuário e senha, usa o usuário do token e mostra quem revisou', async ({ page }) => {
+  await page.addInitScript(() => { sessionStorage.setItem('sem-demo', '1'); localStorage.removeItem('visao-do-porto.demo') })
+  let reviewBody: Record<string, unknown> | null = null
+  let reviewAuth = ''
+  const incident = () => ({ incident_id: 'INC-000001', ppe_type: 'helmet', severity: 'HIGH', status: 'OPEN', reason: 'x', rule_id: 'R', opened_at: '2026-11-23T14:32:00-03:00',
+    duration_seconds: 1, source_cameras: ['CAM-PIER-01'], employee_id: 'F1',
+    ...(reviewBody ? { review_status: 'CONFIRMED', reviewed_by: 'bruno', review_note: 'ok pelo vídeo', reviewed_at: '2026-11-23T14:40:00-03:00' } : { review_status: 'PENDING' }) })
+  await page.route('**/api/epi/incident/incidents', r => r.request().headers()['authorization'] === 'Bearer TOKEN-OK'
+    ? r.fulfill({ json: [incident()] }) : r.fulfill({ status: 401, json: { detail: 'Entre com usuário e senha.' } }))
+  await page.route('**/api/epi/incident/incidents/INC-000001/review', async r => { reviewBody = r.request().postDataJSON(); reviewAuth = r.request().headers()['authorization']; await r.fulfill({ json: incident() }) })
+  await page.route('**/api/epi/tracker/cameras', r => r.fulfill({ json: [] }))
+  await page.route('**/api/epi/auth/auth/login', async r => {
+    const b = r.request().postDataJSON()
+    if (b.password !== 'senha-boa-1') return r.fulfill({ status: 401, json: { detail: 'usuário ou senha inválidos' } })
+    await r.fulfill({ json: { access_token: 'TOKEN-OK', token_type: 'bearer', expires_in: 28800, user: { username: 'bruno', name: 'Bruno Alves', role: 'OPERADOR', active: true } } })
+  })
+  await page.goto('/#alertas')
+  await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible()
+  await page.getByLabel('Usuário').fill('bruno'); await page.getByLabel('Senha').fill('errada')
+  await page.getByRole('button', { name: 'Entrar' }).click()
+  await expect(page.getByText('usuário ou senha inválidos')).toBeVisible()
+  await page.getByLabel('Senha').fill('senha-boa-1')
+  await page.getByRole('button', { name: 'Entrar' }).click()
+  await expect(page.getByRole('button', { name: /EPI ausente: capacete/i })).toBeVisible()
+  await expect(page.getByText('Bruno Alves')).toBeVisible()
+  await page.getByRole('button', { name: /EPI ausente: capacete/i }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByText('Revisor:')).toBeVisible()
+  await expect(dialog.getByLabel('Revisor')).toHaveCount(0)            // sem campo para digitar nome
+  await dialog.getByLabel('Justificativa da revisão').fill('ok pelo vídeo')
+  await dialog.getByRole('button', { name: 'Confirmar', exact: true }).click()
+  await expect(dialog).toBeHidden()
+  expect(reviewAuth).toBe('Bearer TOKEN-OK')
+  expect(reviewBody).toEqual({ decision: 'CONFIRMED', note: 'ok pelo vídeo' })   // não envia nome de revisor
+  await page.getByRole('button', { name: 'Sair' }).click()
+  await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible()
+})

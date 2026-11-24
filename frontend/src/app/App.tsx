@@ -4,6 +4,7 @@ import { AnalysisPage } from '../features/analysis/AnalysisPage'
 import { AlertsPage, Dashboard, HistoryPage, ReviewDialog, ZonesPage } from '../features/operations/Operations'
 import { DataGate, DataProvider, useData } from '../features/operations/DataContext'
 import { sendReview } from '../features/operations/live'
+import { AuthRequired, roleLabel } from '../features/auth/session'
 import { readReviews, reviewKey, type Alert, type Review } from '../features/operations/model'
 
 const pages = [
@@ -25,7 +26,7 @@ export function App() {
 }
 
 function Shell() {
-  const { mode, reviews: serviceReviews, refresh } = useData()
+  const { mode, reviews: serviceReviews, refresh, session, signOut } = useData()
   const live = mode === 'live'
   const [{ page, zone }, setRoute] = useState(readRoute)
   const [localReviews, setReviews] = useState(readReviews)
@@ -42,7 +43,7 @@ function Shell() {
     if (live) {
       // ao vivo: a decisão vai para o serviço de incidentes (guardada com revisor e horário)
       try { await sendReview(id, review.decision, review.note, review.reviewer ?? '') }
-      catch (e) { return `Não foi possível registrar no serviço: ${e instanceof Error ? e.message : 'erro desconhecido'}` }
+      catch (e) { if (e instanceof AuthRequired) refresh(); return `Não foi possível registrar no serviço: ${e instanceof Error ? e.message : 'erro desconhecido'}` }
       refresh()
       setFeedback('Revisão registrada no serviço de incidentes.')
       return
@@ -59,7 +60,8 @@ function Shell() {
       <a className="brand" href="#painel"><img src={import.meta.env.BASE_URL + 'porto.svg'} alt="" /><span><strong>Visão do Porto</strong><small>Central de operações</small></span></a>
       <p className="nav-label">OPERAÇÃO</p>
       <nav aria-label="Navegação principal">{pages.map(({ id, label, Icon }) => <a href={'#' + id} key={id} aria-current={page.id === id ? 'page' : undefined}><Icon size={18} /><span>{label}</span>{page.id === id && <ChevronRight className="nav-arrow" size={15} />}</a>)}</nav>
-      <div className="sidebar-bottom"><div className="sandbox-mark"><span className="site-indicator" aria-hidden="true" /><span><strong>Laboratório UNDB</strong><small>Piloto acadêmico</small></span></div></div>
+      <div className="sidebar-bottom">
+        {session && <div className="user-box"><span><strong>{session.name}</strong><small>{roleLabel[session.role]}</small></span><button className="text-button" onClick={signOut}>Sair</button></div>}<div className="sandbox-mark"><span className="site-indicator" aria-hidden="true" /><span><strong>Laboratório UNDB</strong><small>Piloto acadêmico</small></span></div></div>
     </aside>
     <div className="workspace">
       <header className="topbar"><div className="breadcrumb"><span>Operação</span><ChevronRight size={14} /><strong>{page.label}</strong></div><span className="environment-label"><i aria-hidden="true" /> {live ? 'Dados dos serviços EPI Vision' : 'Ambiente de demonstração'}</span></header>

@@ -44,3 +44,10 @@ Base: https://github.com/diegovitor90/visao-do-porto @ 65c5f23 (17/11/2026). O o
 - **Front (Zonas):** cada setor mostra "N/M câmeras online"; o detalhe lista as câmeras do setor com **Online / Sem sinal / Sem dados / Desconhecido**. Atualiza por WebSocket; só consulta por REST quando o WebSocket está fechado. "Sem sinal" não indica violação.
 - Verificado ponta a ponta com Incident, Tracker e Fusion reais e o proxy do Vite (online → sem sinal após silêncio → online de novo).
 - Proxy novo: `/api/epi/fusion` → `:8002` (`EPI_FUSION_TARGET`).
+
+## 7. Login no front (24/11/2026)
+- Tela "Entrar" (usuário e senha) quando o Incident está em `INC_AUTH_MODE=required`; o token (JWT do `epi_auth`) fica só no `sessionStorage` e vai no cabeçalho `Authorization` e no WebSocket (`?token=`). Se o login não for exigido, a tela abre direto, como antes.
+- Revisão: o revisor passa a ser o usuário logado (campo de nome some; o serviço ignora qualquer nome enviado). Barra lateral mostra nome, perfil e **Sair**. Sessão expirada (401) volta para o login.
+- Proxy novo: `/api/epi/auth` → `:8006` (`EPI_AUTH_TARGET`). 14 testes do front passam (inclui login com senha errada/certa, revisão com token e sair).
+- Ainda não há tela para o supervisor gerenciar usuários (a API existe; criar o primeiro pelo CLI do `epi_auth`).
+- A verificação com os serviços reais ligados (login + revisão pelo navegador) ficou para a próxima rodada.

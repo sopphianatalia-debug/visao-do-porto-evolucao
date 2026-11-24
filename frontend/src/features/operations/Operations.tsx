@@ -3,6 +3,7 @@ import { ArrowRight, ChevronRight, CircleAlert, ClipboardCheck, Clock3, Crosshai
 import { Badge } from '../../shared/Badge'
 import { Evidence, labImage } from '../analysis/Evidence'
 import { useData } from './DataContext'
+import { roleLabel } from '../auth/session'
 import { dateLabel, decisionLabels, severityLabels, type Alert, type Decision, type Review, type Reviews, type Severity } from './model'
 
 type CamState = 'ONLINE' | 'OFFLINE' | 'SEM_DADOS' | 'DESCONHECIDO'
@@ -135,7 +136,7 @@ export function HistoryPage({ reviews, onOpen }: { reviews: Reviews; onOpen: Pic
 }
 
 export function ReviewDialog({ alert, review, onClose, onSave }: { alert: Alert; review?: Review; onClose: () => void; onSave: (id: string, review: Review) => Promise<string | void> | string | void }) {
-  const { zoneName, mode } = useData()
+  const { zoneName, mode, session } = useData()
   const live = mode === 'live'
   const dialog = useRef<HTMLDialogElement>(null)
   const noteField = useRef<HTMLTextAreaElement>(null)
@@ -156,9 +157,9 @@ export function ReviewDialog({ alert, review, onClose, onSave }: { alert: Alert;
 
   async function save(decision: Decision) {
     if (!note.trim()) { setError('Adicione uma justificativa para registrar a decisão.'); noteField.current?.focus(); return }
-    if (live && !reviewer.trim()) { setError('Informe o nome do revisor.'); return }
+    if (live && !session && !reviewer.trim()) { setError('Informe o nome do revisor.'); return }
     setSaving(true)
-    const problem = await onSave(alert.id, { decision, note: note.trim(), reviewedAt: new Date().toISOString(), reviewer: reviewer.trim() || undefined })
+    const problem = await onSave(alert.id, { decision, note: note.trim(), reviewedAt: new Date().toISOString(), reviewer: session ? session.username : (reviewer.trim() || undefined) })
     setSaving(false)
     if (problem) { setError(problem); return }
     try { if (reviewer.trim()) localStorage.setItem('visao-do-porto.reviewer', reviewer.trim()) } catch { /* sem armazenamento */ }
@@ -178,7 +179,9 @@ export function ReviewDialog({ alert, review, onClose, onSave }: { alert: Alert;
       <dl className="review-facts"><div><dt>Zona</dt><dd>{zoneName(alert.zone)}</dd></div><div><dt>Fonte</dt><dd>{alert.camera}</dd></div><div><dt>Registro</dt><dd>{live ? new Date().toLocaleDateString('pt-BR') : dateLabel} · {alert.time}</dd></div></dl>
       <div className="rule-box"><strong>{alert.rule}</strong><p>{alert.reason}</p></div>
       {review ? <div className="saved-review"><Badge tone={review.decision === 'confirmed' ? 'clear' : 'neutral'}>{decisionLabels[review.decision]}</Badge><p>{review.note}</p><small>{new Date(review.reviewedAt).toLocaleString('pt-BR')}{review.reviewer ? ` · ${review.reviewer}` : ''} · {live ? 'Registrado no serviço de incidentes' : 'Registro local de demonstração'}</small></div> :
-        <><label className="note-label" htmlFor="review-reviewer">Revisor</label><input id="review-reviewer" className="text-input" value={reviewer} onChange={e => { setReviewer(e.target.value); setError('') }} maxLength={80} placeholder="Seu nome" autoComplete="name" />
+        <>{session
+          ? <p className="reviewer-line"><strong>Revisor:</strong> {session.name} <small>({roleLabel[session.role]})</small></p>
+          : <><label className="note-label" htmlFor="review-reviewer">Revisor</label><input id="review-reviewer" className="text-input" value={reviewer} onChange={e => { setReviewer(e.target.value); setError('') }} maxLength={80} placeholder="Seu nome" autoComplete="name" /></>}
         <label className="note-label" htmlFor="review-note">Justificativa da revisão</label><textarea ref={noteField} id="review-note" value={note} onChange={e => { setNote(e.target.value); setError('') }} aria-invalid={!!error} aria-describedby={error ? 'review-error' : undefined} maxLength={500} rows={3} placeholder="O que você observou na evidência?" />
         {!!error && <div className="notice danger" role="alert" id="review-error"><CircleAlert size={17} />{error}</div>}</>}
     </div>

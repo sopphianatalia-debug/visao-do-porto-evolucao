@@ -1,5 +1,6 @@
 // Camada de dados "ao vivo": lê os serviços do EPI Vision (Incident :8004 e Tracker :8010)
 // pelo proxy do Vite. Se não responderem, o front volta aos dados simulados e avisa na tela.
+import { AuthRequired, authHeader, readSession } from '../auth/session'
 import type { Alert, Decision, Review, Reviews, Severity, Zone } from './model'
 
 export const SECTORS: Record<string, { name: string; subtitle: string }> = {
@@ -37,9 +38,11 @@ export function reviewOf(i: ApiIncident): Review | undefined {
 /** Envia o parecer ao Incident. Lança erro com a mensagem do serviço se for recusado. */
 export async function sendReview(incidentId: string, decision: Decision, note: string, reviewer: string): Promise<void> {
   const res = await fetch(`/api/epi/incident/incidents/${encodeURIComponent(incidentId)}/review`, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ decision: API_DECISION[decision], note, reviewer }),
+    method: 'POST', headers: { 'content-type': 'application/json', ...authHeader() },
+    // com login, o serviço usa o usuário do token e ignora este campo
+    body: JSON.stringify({ decision: API_DECISION[decision], note, ...(readSession() ? {} : { reviewer }) }),
   })
+  if (res.status === 401 && readSession()) throw new AuthRequired()
   if (!res.ok) {
     let detail = `erro ${res.status}`
     try { const j = await res.json(); if (typeof j.detail === 'string') detail = j.detail } catch { /* mantém o código */ }
@@ -47,11 +50,12 @@ export async function sendReview(incidentId: string, decision: Decision, note: s
   }
 }
 
-async function getJson<T>(url: string): Promise<T> {
+async function getJson<T>(url: string, withAuth = false): Promise<T> {
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), 2500)
   try {
-    const res = await fetch(url, { signal: ctl.signal })
+    const res = await fetch(url, { signal: ctl.signal, headers: withAuth ? authHeader() : undefined })
+    if (res.status === 401) throw new AuthRequired()
     if (!res.ok) throw new Error(String(res.status))
     return await res.json() as T
   } finally { clearTimeout(timer) }
@@ -82,7 +86,7 @@ export async function fetchCameraSignals(): Promise<Record<string, CameraSignal>
 
 export async function fetchLive(): Promise<LiveData> {
   const [incidents, cameras] = await Promise.all([
-    getJson<ApiIncident[]>('/api/epi/incident/incidents'),
+    getJson<ApiIncident[]>('/api/epi/incident/incidents', true),
     getJson<ApiCamera[]>('/api/epi/tracker/cameras'),
   ])
   // fila = incidentes abertos; histórico = os já revisados (mesmo que depois resolvidos)

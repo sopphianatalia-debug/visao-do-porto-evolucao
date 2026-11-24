@@ -1,15 +1,19 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { alerts as simAlerts, zones as simZones, type Alert, type Reviews, type Zone } from './model'
+import { AuthRequired, clearSession, loginRequest, readSession, saveSession, type Session } from '../auth/session'
+import { LoginPage } from '../auth/LoginPage'
 import { fetchCameraSignals, fetchLive, type ApiCamera, type CameraSignal } from './live'
 
-export type DataMode = 'live' | 'simulated' | 'loading' | 'offline'
+export type DataMode = 'live' | 'simulated' | 'loading' | 'offline' | 'auth'
 
 // Dados de exemplo só entram se pedidos de propósito (desenvolvimento/testes): localStorage['visao-do-porto.demo']='1'.
 const demoAllowed = () => { try { return localStorage.getItem('visao-do-porto.demo') === '1' } catch { return false } }
 type Data = { alerts: Alert[]; zones: Zone[]; mode: DataMode; zoneName: (id: string) => string; reviews: Reviews; refresh: () => void
-  cameras: ApiCamera[]; signals: Record<string, CameraSignal>; signalsKnown: boolean }
+  cameras: ApiCamera[]; signals: Record<string, CameraSignal>; signalsKnown: boolean
+  session: Session | null; signIn: (u: string, p: string) => Promise<string | void>; signOut: () => void }
 
-const fallback: Data = { alerts: simAlerts, zones: simZones, mode: 'simulated', zoneName: id => simZones.find(z => z.id === id)?.name ?? id, reviews: {}, refresh: () => {}, cameras: [], signals: {}, signalsKnown: false }
+type Base = Omit<Data, 'zoneName' | 'refresh' | 'cameras' | 'signals' | 'signalsKnown' | 'session' | 'signIn' | 'signOut'>
+const fallback: Data = { alerts: simAlerts, zones: simZones, mode: 'simulated', zoneName: id => simZones.find(z => z.id === id)?.name ?? id, reviews: {}, refresh: () => {}, cameras: [], signals: {}, signalsKnown: false, session: null, signIn: async () => {}, signOut: () => {} }
 const Ctx = createContext<Data>(fallback)
 export const useData = () => useContext(Ctx)
 
@@ -18,8 +22,9 @@ const POLL_MS = 3000
 /** Consulta os serviços a cada 3 s. Se falharem: mostra "indisponível" (ou, só em modo demo, dados de exemplo). */
 export function DataProvider({ children }: { children: ReactNode }) {
   const demo = demoAllowed()
-  const empty: Omit<Data, 'zoneName' | 'refresh' | 'cameras' | 'signals' | 'signalsKnown'> = demo ? { alerts: simAlerts, zones: simZones, mode: 'simulated', reviews: {} } : { alerts: [], zones: [], mode: 'loading', reviews: {} }
-  const [data, setData] = useState<Omit<Data, 'zoneName' | 'refresh' | 'cameras' | 'signals' | 'signalsKnown'>>(empty)
+  const empty: Base = demo ? { alerts: simAlerts, zones: simZones, mode: 'simulated', reviews: {} } : { alerts: [], zones: [], mode: 'loading', reviews: {} }
+  const [data, setData] = useState<Base>(empty)
+  const [session, setSession] = useState<Session | null>(readSession)
   const [cameras, setCameras] = useState<ApiCamera[]>([])
   const [signals, setSignals] = useState<Record<string, CameraSignal>>({})
   const [signalsKnown, setSignalsKnown] = useState(false)
@@ -32,7 +37,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const live = await fetchLive()
         if (alive) setData({ alerts: live.alerts, zones: live.zones, mode: 'live', reviews: live.reviews })
         setCameras(live.cameras)
-      } catch {
+      } catch (e) {
+        if (e instanceof AuthRequired) { clearSession(); if (alive) { setSession(null); setData({ alerts: [], zones: [], mode: 'auth', reviews: {} }) } return }
         if (alive) setData(demo ? { alerts: simAlerts, zones: simZones, mode: 'simulated', reviews: {} } : { alerts: [], zones: [], mode: 'offline', reviews: {} })
       }
     }
@@ -50,7 +56,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const connect = () => {
       try {
         const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-        ws = new WebSocket(`${proto}://${location.host}/api/epi/incident/ws/incidents`)
+        const tk = readSession()?.token
+        ws = new WebSocket(`${proto}://${location.host}/api/epi/incident/ws/incidents${tk ? '?token=' + encodeURIComponent(tk) : ''}`)
         ws.onmessage = ev => { try { if (JSON.parse(ev.data).type !== 'SNAPSHOT') tick() } catch { /* ignora */ } }
         ws.onclose = () => { if (alive) retry = setTimeout(connect, 5000) }
         ws.onerror = () => ws?.close()
@@ -79,14 +86,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
     connectFusion()
     return () => { alive = false; clearInterval(t); clearTimeout(retry); clearTimeout(fretry); ws?.close(); fws?.close() }
   }, [])
-  const value = useMemo<Data>(() => ({ ...data, zoneName: id => data.zones.find(z => z.id === id)?.name ?? id, refresh: () => tickRef.current(), cameras, signals, signalsKnown }), [data, cameras, signals, signalsKnown])
+  const value = useMemo<Data>(() => ({ ...data, zoneName: id => data.zones.find(z => z.id === id)?.name ?? id, refresh: () => tickRef.current(), cameras, signals, signalsKnown, session,
+    signIn: async (u: string, p: string) => {
+      try { const s = await loginRequest(u, p); saveSession(s); setSession(s); tickRef.current() }
+      catch (e) { return e instanceof Error ? e.message : 'Não foi possível entrar.' }
+    },
+    signOut: () => { clearSession(); setSession(null); setData({ alerts: [], zones: [], mode: 'auth', reviews: {} }); tickRef.current() } }), [data, cameras, signals, signalsKnown, session])
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 
 /** Só mostra as telas operacionais quando há dados reais (ou demo explícito). */
 export function DataGate({ children }: { children: ReactNode }) {
-  const { mode } = useData()
+  const { mode, signIn } = useData()
   if (mode === 'live' || mode === 'simulated') return <>{children}</>
+  if (mode === 'auth') return <LoginPage onLogin={signIn} />
   return <section className="panel" role="status" aria-live="polite">
     <div className="panel-head"><div>
       <h2>{mode === 'loading' ? 'Conectando aos serviços…' : 'Serviços indisponíveis'}</h2>
