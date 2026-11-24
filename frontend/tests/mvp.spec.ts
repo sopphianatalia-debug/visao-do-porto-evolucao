@@ -257,7 +257,7 @@ test('evidência: mostra o recorte com caixas por cima (com login), e avisa quan
   await page.route('**/api/epi/tracker/cameras', r => r.fulfill({ json: [] }))
   const auth: string[] = []
   await page.route('**/api/epi/incident/incidents/INC-000001/evidence', r => { auth.push(r.request().headers()['authorization']); return r.fulfill({ json: [
-    { evidence_id: 'e1', width: 1, height: 1, detections: [{ label: 'helmet', status: 'MISSING', bbox: [0.2, 0, 0.3, 0.2] }], purged: false, expires_at: '2026-12-23T00:00:00+00:00' }] }) })
+    { evidence_id: 'e1', width: 1, height: 1, detections: [{ label: 'person', bbox: [0.05, 0.05, 0.9, 0.9] }, { label: 'vest', status: 'PRESENT', bbox: [0.2, 0.4, 0.5, 0.3] }], findings: [{ label: 'helmet', status: 'MISSING' }, { label: 'boots', status: 'NOT_VISIBLE' }], purged: false, expires_at: '2026-12-23T00:00:00+00:00' }] }) })
   await page.route('**/api/epi/incident/incidents/INC-000001/evidence/e1/image', r => { auth.push(r.request().headers()['authorization']); return r.fulfill({ body: png, contentType: 'image/png' }) })
   await page.route('**/api/epi/incident/incidents/INC-000002/evidence', r => r.fulfill({ json: [] }))
   await page.route('**/api/epi/incident/incidents/INC-000003/evidence', r => r.fulfill({ json: [{ evidence_id: 'e3', width: 1, height: 1, detections: [], purged: true, expires_at: null }] }))
@@ -266,7 +266,9 @@ test('evidência: mostra o recorte com caixas por cima (com login), e avisa quan
   await open('INC-000001')
   const d = page.getByRole('dialog')
   await expect(d.getByAltText('Recorte da pessoa no momento do incidente')).toBeVisible()
-  await expect(d.locator('svg rect')).toHaveCount(1)
+  await expect(d.locator('svg rect')).toHaveCount(2)
+  await expect(d.getByText('Capacete ausente')).toBeVisible()
+  await expect(d.getByText('Botas não visível')).toBeVisible()
   await expect(d.getByText(/Somente o recorte da pessoa/)).toBeVisible()
   expect(auth.length).toBeGreaterThanOrEqual(2)
   expect(new Set(auth)).toEqual(new Set(['Bearer TOKEN-OK']))   // lista e imagem só com o login

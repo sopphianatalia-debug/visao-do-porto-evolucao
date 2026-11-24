@@ -59,3 +59,8 @@ Base: https://github.com/diegovitor90/visao-do-porto @ 65c5f23 (17/11/2026). O o
 - **Front**: a revisão busca a imagem com o cabeçalho de login (blob em memória) e desenha as caixas por cima; mostra estados "sem imagem", "apagada pelo prazo", "revisado por outra pessoa" e "sem login".
 - Verificado: Incident 80 testes, integração 117, front 15 (1 pulado), e uma rodada real (envio com chave, 401 sem chave/sem login, imagem, trilha, exclusão → 410 e arquivo removido).
 - Suposição a confirmar com o grupo: evidência sem revisão vence 30 dias após a captura.
+
+### 8.1 Evidência: caixa da pessoa e conclusão por EPI
+- O recorte leva a caixa da pessoa (contorno tracejado) e um resumo por EPI: presente, ausente ou não visível (não ver != faltar). Ausente não tem posição na imagem, então não se desenha caixa inventada.
+- O Incident aceita `findings` (opcional, até 10) e migra bancos antigos; rodado no Mac com webcam e YOLO do projeto: imagem aparece na revisão.
+- O rodapé do painel agora diz que a revisão é registrada no serviço.

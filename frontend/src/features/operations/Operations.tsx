@@ -84,7 +84,7 @@ export function Dashboard({ reviews, onOpen, onZone, onNavigate }: {
         <LabMap onZone={onZone} reviews={reviews} />
       </section>
     </div>
-    <p className="simulation-note"><CircleAlert size={16} aria-hidden="true" /> {live ? 'Dados ao vivo dos serviços EPI Vision (Incident e Tracker). A revisão ainda é local ao navegador.' : 'Os alertas e a planta são ilustrativos. Nenhum serviço está conectado.'}</p>
+    <p className="simulation-note"><CircleAlert size={16} aria-hidden="true" /> {live ? 'Dados ao vivo dos serviços EPI Vision (Incident e Tracker). A revisão é registrada no serviço de incidentes.' : 'Os alertas e a planta são ilustrativos. Nenhum serviço está conectado.'}</p>
   </>
 }
 
