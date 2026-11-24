@@ -98,3 +98,28 @@ export async function fetchLive(): Promise<LiveData> {
   if (alerts.some(a => a.zone === NO_SECTOR)) zones.push({ id: NO_SECTOR, name: 'Sem setor', subtitle: 'Câmera sem setor cadastrado', grid: '' })
   return { alerts, zones, cameras, reviews }
 }
+
+// ---- Evidência em imagem (só o recorte da pessoa; só com login) ----
+export type EvidenceBox = { label: string; status?: string; bbox: [number, number, number, number]; confidence?: number }
+export type EvidenceItem = { id: string; width: number; height: number; detections: EvidenceBox[]; expiresAt: string | null; purged: boolean; url: string | null }
+export type EvidenceResult = { state: 'ok' | 'none' | 'forbidden' | 'unavailable'; items: EvidenceItem[] }
+
+/** Busca a lista e cada imagem COM o cabeçalho de login (não existe URL pública). Os blobs ficam só em memória. */
+export async function fetchEvidence(incidentId: string): Promise<EvidenceResult> {
+  const base = `/api/epi/incident/incidents/${encodeURIComponent(incidentId)}/evidence`
+  const res = await fetch(base, { headers: authHeader() })
+  if (res.status === 401 && readSession()) throw new AuthRequired()
+  if (res.status === 403) return { state: 'forbidden', items: [] }
+  if (!res.ok) return { state: 'unavailable', items: [] }
+  const rows = await res.json() as Array<{ evidence_id: string; width: number; height: number; detections: EvidenceBox[]; expires_at: string | null; purged: boolean }>
+  if (!rows.length) return { state: 'none', items: [] }
+  const items = await Promise.all(rows.map(async (r): Promise<EvidenceItem> => {
+    let url: string | null = null
+    if (!r.purged) {
+      const img = await fetch(`${base}/${encodeURIComponent(r.evidence_id)}/image`, { headers: authHeader() })
+      if (img.ok) url = URL.createObjectURL(await img.blob())
+    }
+    return { id: r.evidence_id, width: r.width, height: r.height, detections: r.detections ?? [], expiresAt: r.expires_at, purged: r.purged, url }
+  }))
+  return { state: 'ok', items }
+}

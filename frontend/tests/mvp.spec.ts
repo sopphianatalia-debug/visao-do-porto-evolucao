@@ -245,3 +245,35 @@ test('com login exigido: pede usuário e senha, usa o usuário do token e mostra
   await page.getByRole('button', { name: 'Sair' }).click()
   await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible()
 })
+
+test('evidência: mostra o recorte com caixas por cima (com login), e avisa quando não há imagem ou já foi apagada', async ({ page }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem('sem-demo', '1'); localStorage.removeItem('visao-do-porto.demo')
+    sessionStorage.setItem('visao-do-porto.session.v1', JSON.stringify({ token: 'TOKEN-OK', username: 'bruno', name: 'Bruno Alves', role: 'OPERADOR' }))
+  })
+  const inc = (id: string) => ({ incident_id: id, ppe_type: 'helmet', severity: 'HIGH', status: 'OPEN', reason: 'x', rule_id: 'R', opened_at: '2026-11-23T14:32:00-03:00',
+    duration_seconds: 1, source_cameras: ['CAM-PIER-01'], employee_id: 'F1', review_status: 'PENDING' })
+  await page.route('**/api/epi/incident/incidents', r => r.fulfill({ json: [inc('INC-000001'), inc('INC-000002'), inc('INC-000003')] }))
+  await page.route('**/api/epi/tracker/cameras', r => r.fulfill({ json: [] }))
+  const auth: string[] = []
+  await page.route('**/api/epi/incident/incidents/INC-000001/evidence', r => { auth.push(r.request().headers()['authorization']); return r.fulfill({ json: [
+    { evidence_id: 'e1', width: 1, height: 1, detections: [{ label: 'helmet', status: 'MISSING', bbox: [0.2, 0, 0.3, 0.2] }], purged: false, expires_at: '2026-12-23T00:00:00+00:00' }] }) })
+  await page.route('**/api/epi/incident/incidents/INC-000001/evidence/e1/image', r => { auth.push(r.request().headers()['authorization']); return r.fulfill({ body: png, contentType: 'image/png' }) })
+  await page.route('**/api/epi/incident/incidents/INC-000002/evidence', r => r.fulfill({ json: [] }))
+  await page.route('**/api/epi/incident/incidents/INC-000003/evidence', r => r.fulfill({ json: [{ evidence_id: 'e3', width: 1, height: 1, detections: [], purged: true, expires_at: null }] }))
+  await page.goto('/#alertas')
+  const open = async (id: string) => { await page.getByRole('button', { name: new RegExp(id) }).first().click() }
+  await open('INC-000001')
+  const d = page.getByRole('dialog')
+  await expect(d.getByAltText('Recorte da pessoa no momento do incidente')).toBeVisible()
+  await expect(d.locator('svg rect')).toHaveCount(1)
+  await expect(d.getByText(/Somente o recorte da pessoa/)).toBeVisible()
+  expect(auth.length).toBeGreaterThanOrEqual(2)
+  expect(new Set(auth)).toEqual(new Set(['Bearer TOKEN-OK']))   // lista e imagem só com o login
+  await d.getByRole('button', { name: 'Fechar detalhes' }).click()
+  await open('INC-000002')
+  await expect(page.getByRole('dialog').getByText(/Nenhuma imagem foi guardada/)).toBeVisible()
+  await page.getByRole('dialog').getByRole('button', { name: 'Fechar detalhes' }).click()
+  await open('INC-000003')
+  await expect(page.getByRole('dialog').getByText(/apagada pelo prazo de retenção/)).toBeVisible()
+})

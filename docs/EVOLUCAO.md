@@ -51,3 +51,11 @@ Base: https://github.com/diegovitor90/visao-do-porto @ 65c5f23 (17/11/2026). O o
 - Proxy novo: `/api/epi/auth` → `:8006` (`EPI_AUTH_TARGET`). 14 testes do front passam (inclui login com senha errada/certa, revisão com token e sair).
 - Ainda não há tela para o supervisor gerenciar usuários (a API existe; criar o primeiro pelo CLI do `epi_auth`).
 - Verificado ponta a ponta com `epi_auth`, Incident (`required`) e Tracker reais: senha errada recusada, operador entra e revisa, o serviço guarda `operador / OPERADOR / verificado`, e o supervisor sobrescreve.
+
+## 8. Evidência em imagem
+
+- **Incident** (repo EPI Vision): guarda só o recorte da pessoa + caixas 0..1; liga com `INC_EVIDENCE_DIR` e `INC_AUTH_MODE=required`. Prazo 30 dias após a revisão (sem revisão: após a captura) e 7 dias se descartada ou evidência insuficiente; limpeza automática por hora. Vê: operador (pendentes ou revisados por ele) e supervisor (todos). Sem URL pública, `Cache-Control: private, no-store`. Trilha de acesso (envio, visualização, exclusão, limpeza) só para supervisor; supervisor também apaga antes do prazo (pedido do titular).
+- **Pipeline** (`epi_integration`): `EPI_PIPELINE_SEND_EVIDENCE=true` recorta a pessoa (com margem, ≤ 1280 px) quando o incidente abre e envia com `X-Service-Key`. Falha nunca derruba o pipeline.
+- **Front**: a revisão busca a imagem com o cabeçalho de login (blob em memória) e desenha as caixas por cima; mostra estados "sem imagem", "apagada pelo prazo", "revisado por outra pessoa" e "sem login".
+- Verificado: Incident 80 testes, integração 117, front 15 (1 pulado), e uma rodada real (envio com chave, 401 sem chave/sem login, imagem, trilha, exclusão → 410 e arquivo removido).
+- Suposição a confirmar com o grupo: evidência sem revisão vence 30 dias após a captura.
