@@ -5,6 +5,7 @@ import { Evidence, labImage } from '../analysis/Evidence'
 import { useData } from './DataContext'
 import { EvidenceViewer } from './EvidenceViewer'
 import { roleLabel } from '../auth/session'
+import { useWorker, workerLine } from './useWorker'
 import { dateLabel, decisionLabels, severityLabels, type Alert, type Decision, type Review, type Reviews, type Severity } from './model'
 
 type CamState = 'ONLINE' | 'OFFLINE' | 'SEM_DADOS' | 'DESCONHECIDO'
@@ -140,6 +141,7 @@ export function ReviewDialog({ alert, review, onClose, onSave }: { alert: Alert;
   const { zoneName, mode, session } = useData()
   const live = mode === 'live'
   const readOnly = live && session?.role === 'OPERADOR'   // quem decide é o supervisor
+  const worker = useWorker(alert.employee, live && session?.role === 'SUPERVISOR')   // nome/cargo/setor só para o supervisor
   const dialog = useRef<HTMLDialogElement>(null)
   const noteField = useRef<HTMLTextAreaElement>(null)
   const [note, setNote] = useState(review?.note ?? '')
@@ -178,7 +180,7 @@ export function ReviewDialog({ alert, review, onClose, onSave }: { alert: Alert;
       {live ? (session ? <EvidenceViewer incidentId={alert.id} /> : <p className="image-caption">A evidência em imagem só aparece com login. Confira a câmera de origem.</p>) : <>
       <Evidence src={labImage} width={960} height={540} alt="Imagem ilustrativa do cenário, não corresponde a uma ocorrência real" zone={alert.zone === 'z2'} />
       <p className="image-caption">Cena ilustrativa. Não é uma evidência de ocorrência real.</p></>}
-      <dl className="review-facts"><div><dt>Zona</dt><dd>{zoneName(alert.zone)}</dd></div><div><dt>Fonte</dt><dd>{alert.camera}</dd></div>{live && <div><dt>Trabalhador</dt><dd>{alert.employee ?? 'Não identificado'}</dd></div>}<div><dt>Registro</dt><dd>{live ? new Date().toLocaleDateString('pt-BR') : dateLabel} · {alert.time}</dd></div></dl>
+      <dl className="review-facts"><div><dt>Zona</dt><dd>{zoneName(alert.zone)}</dd></div><div><dt>Fonte</dt><dd>{alert.camera}</dd></div>{live && <div><dt>Trabalhador</dt><dd>{workerLine(worker, alert.employee)}</dd></div>}<div><dt>Registro</dt><dd>{live ? new Date().toLocaleDateString('pt-BR') : dateLabel} · {alert.time}</dd></div></dl>
       <div className="rule-box"><strong>{alert.rule}</strong><p>{alert.reason}</p></div>
       {readOnly && !review && <p className="reviewer-line" data-testid="operator-note"><strong>Somente leitura.</strong></p>}
       {review ? <div className="saved-review"><Badge tone={review.decision === 'confirmed' ? 'clear' : 'neutral'}>{decisionLabels[review.decision]}</Badge><p>{review.note}</p><small>{new Date(review.reviewedAt).toLocaleString('pt-BR')}{review.reviewer ? ` · ${review.reviewer}` : ''} · {live ? 'Registrado no serviço de incidentes' : 'Registro local de demonstração'}</small></div> :

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { BellRing, Volume2, VolumeX } from 'lucide-react'
 import type { Alert, Reviews } from './model'
+import { useWorker, workerLine } from './useWorker'
 
 const SOUND_KEY = 'visao-do-porto.alert-sound'
 const readSound = () => { try { return localStorage.getItem(SOUND_KEY) !== 'off' } catch { return true } }
@@ -45,12 +46,19 @@ export function Notifier({ alerts, reviews, enabled, zoneName, onOpen }: { alert
       {sound ? <Volume2 size={15} aria-hidden="true" /> : <VolumeX size={15} aria-hidden="true" />} Som {sound ? 'ligado' : 'desligado'}
     </button>
     <div className="notifier" role="status" aria-live="assertive" data-testid="notifier">
-      {alive.map(a => <div className="notifier-item" key={a.id}>
-        <BellRing size={18} aria-hidden="true" />
-        <span><strong>Novo incidente: {a.title}</strong><small>Trabalhador: {a.employee ?? 'não identificado'}</small><small>{zoneName(a.zone)} · {a.camera} · {a.id}</small></span>
-        <button className="button primary" onClick={() => { onOpen(a); setFresh(f => f.filter(x => x.id !== a.id)) }}>Abrir</button>
-        <button className="icon-button" aria-label="Dispensar aviso" onClick={() => setFresh(f => f.filter(x => x.id !== a.id))}>×</button>
-      </div>)}
+      {alive.map(a => <NotifierItem key={a.id} a={a} zoneName={zoneName}
+        onOpen={() => { onOpen(a); setFresh(f => f.filter(x => x.id !== a.id)) }}
+        onDismiss={() => setFresh(f => f.filter(x => x.id !== a.id))} />)}
     </div>
   </>
+}
+
+function NotifierItem({ a, zoneName, onOpen, onDismiss }: { a: Alert; zoneName: (id: string) => string; onOpen: () => void; onDismiss: () => void }) {
+  const worker = useWorker(a.employee, true)      // o Notifier só existe para o supervisor
+  return <div className="notifier-item">
+    <BellRing size={18} aria-hidden="true" />
+    <span><strong>Novo incidente: {a.title}</strong><small>Trabalhador: {a.employee ? workerLine(worker, a.employee) : 'não identificado'}</small><small>{zoneName(a.zone)} · {a.camera} · {a.id}</small></span>
+    <button className="button primary" onClick={onOpen}>Abrir</button>
+    <button className="icon-button" aria-label="Dispensar aviso" onClick={onDismiss}>×</button>
+  </div>
 }

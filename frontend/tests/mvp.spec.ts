@@ -334,3 +334,42 @@ test('aviso ativo: supervisor vê incidente novo na hora (alerta, contador no t�
   await expect(op.getByTestId('notifier')).toHaveCount(0)
   await op.close()
 })
+
+test('trabalhador: supervisor vê nome, cargo e setor do cadastro; operador só o código; cadastro fora do ar cai para o código', async ({ page, browser }) => {
+  const inc = { incident_id: 'INC-000001', ppe_type: 'helmet', severity: 'HIGH', status: 'OPEN', reason: 'x', rule_id: 'R',
+    opened_at: '2026-11-23T14:32:00-03:00', duration_seconds: 1, source_cameras: ['CAM-PIER-01'], employee_id: 'FUNC-000001', review_status: 'PENDING' }
+  const setup = async (p: Page, role: 'SUPERVISOR' | 'OPERADOR', workers: (url: string) => unknown) => {
+    await p.addInitScript((r: string) => {
+      sessionStorage.setItem('sem-demo', '1'); localStorage.removeItem('visao-do-porto.demo')
+      sessionStorage.setItem('visao-do-porto.session.v1', JSON.stringify({ token: 'TOK-' + r, username: 'u', name: 'Pessoa', role: r }))
+    }, role)
+    await p.route('**/api/epi/incident/incidents', r => r.fulfill({ json: [inc] }))
+    await p.route('**/api/epi/tracker/cameras', r => r.fulfill({ json: [] }))
+    await p.route('**/api/epi/incident/incidents/*/evidence', r => r.fulfill({ json: [] }))
+    await p.route('**/api/epi/incident/workers/**', r => { workers(r.request().url()); return r.request().headers()['authorization'] === 'Bearer TOK-SUPERVISOR'
+      ? r.fulfill({ json: { employee_code: 'FUNC-000001', name: 'Maria Souza', role_title: 'Operadora de guindaste', sector: 'PIER_BORDO', status: 'ACTIVE' } })
+      : r.fulfill({ status: 403, json: { detail: 'Somente supervisor.' } }) })
+  }
+  await setup(page, 'SUPERVISOR', () => undefined)
+  await page.goto('/#alertas')
+  await page.getByRole('button', { name: /EPI ausente: capacete/i }).click()
+  await expect(page.getByRole('dialog').getByText('Maria Souza · Operadora de guindaste · Píer e bordo (FUNC-000001)')).toBeVisible()
+
+  const op = await browser.newPage({ baseURL: 'http://127.0.0.1:5173' })
+  const calls: string[] = []
+  await setup(op, 'OPERADOR', u => calls.push(u))
+  await op.goto('/#alertas')
+  await op.getByRole('button', { name: /EPI ausente: capacete/i }).click()
+  await expect(op.getByRole('dialog').getByText('FUNC-000001', { exact: true })).toBeVisible()
+  await expect(op.getByText('Maria Souza')).toHaveCount(0)
+  expect(calls).toEqual([])                                   // operador nem pergunta o nome
+  await op.close()
+
+  const down = await browser.newPage({ baseURL: 'http://127.0.0.1:5173' })
+  await setup(down, 'SUPERVISOR', () => undefined)
+  await down.route('**/api/epi/incident/workers/**', r => r.fulfill({ status: 503, json: { detail: 'Cadastro indisponível.' } }))
+  await down.goto('/#alertas')
+  await down.getByRole('button', { name: /EPI ausente: capacete/i }).click()
+  await expect(down.getByRole('dialog').getByText('FUNC-000001', { exact: true })).toBeVisible()   // cai para o código, sem quebrar
+  await down.close()
+})

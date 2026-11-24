@@ -75,4 +75,10 @@ Base: https://github.com/diegovitor90/visao-do-porto @ 65c5f23 (17/11/2026). O o
 - O que já existia ao abrir a tela não conta como novo. O aviso leva só texto (o quê, onde, quando); a imagem continua só dentro da revisão, com login.
 - Chega pelo mesmo canal em tempo real dos incidentes (consulta de 3 s como reserva). Operador não recebe.
 - Pendente: aviso fora do sistema (e-mail ou mensagem), que precisa decidir canal e destinatários.
-- Alerta e revisão mostram o **código do trabalhador** (ex.: FUNC-000001). O **nome** ainda não: o Incident guarda só o código, e o serviço de identidade usa outro sistema de perfis (não aceita o login do `epi_auth`). Decisão pendente: de onde vem o nome (ver conversa de 24/11).
+
+### 8.4 Quem é o trabalhador (24/11/2026)
+- O incidente guarda **só o código** (FUNC-xxxxxx). O **nome, cargo e setor** vêm do cadastro: Spring (Diego) → `worker_sync` → Identity, ligados por matrícula = `registration`. Nada disso é copiado para o incidente nem para o navegador.
+- Novo no Incident: `GET /workers/{employee_code}`, **só supervisor** (operador recebe 403). Ele consulta o Identity (`GET /employees/by-code/{code}`) com a variável `INC_IDENTITY_URL` e devolve apenas nome, cargo, setor e situação; nada de biometria.
+- Na tela, o supervisor vê "Maria Souza · Operadora · Píer e bordo (FUNC-000001)" no aviso ativo e na revisão. O operador continua vendo só o código.
+- Se o cadastro estiver fora do ar ou o código não existir, a tela mostra só o código (sem erro). Para ter nomes, rode antes `sync_trabalhadores.py`.
+- Dependência do Diego: o Spring dele precisa ter `setor` e `cargo` por trabalhador; sem isso o Identity usa um setor/cargo padrão na sincronização.
