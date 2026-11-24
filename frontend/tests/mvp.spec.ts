@@ -318,9 +318,12 @@ test('aviso ativo: supervisor vê incidente novo na hora (alerta, contador no t�
   await expect(page.getByTestId('notifier').getByText(/Novo incidente/)).toHaveCount(0)        // o que já existia não é "novo"
   items = [inc('INC-000002'), inc('INC-000001')]
   await expect(page.getByTestId('notifier').getByText(/Novo incidente: EPI ausente: capacete/)).toBeVisible({ timeout: 8000 })
+  await expect(page.getByTestId('notifier').getByText('Trabalhador: F1')).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page).toHaveTitle(/^\(2\)/)
   await page.getByTestId('notifier').getByRole('button', { name: 'Abrir' }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
+  await expect(page.getByRole('dialog').getByText('Trabalhador', { exact: true })).toBeVisible()
   const op = await browser.newPage({ baseURL: 'http://127.0.0.1:5173' })
   let items2 = [inc('INC-000001')]
   await setup(op, 'OPERADOR', () => items2)

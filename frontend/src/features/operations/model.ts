@@ -5,6 +5,7 @@ export type Reviews = Record<string, Review>
 export type Alert = {
   id: string; title: string; type: string; severity: Severity;
   zone: string; camera: string; time: string; rule: string; reason: string;
+  employee?: string   // código do trabalhador identificado (só no modo ao vivo)
 }
 export type Zone = { id: string; name: string; subtitle: string; grid: string }
 

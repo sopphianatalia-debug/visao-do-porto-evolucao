@@ -75,3 +75,4 @@ Base: https://github.com/diegovitor90/visao-do-porto @ 65c5f23 (17/11/2026). O o
 - O que já existia ao abrir a tela não conta como novo. O aviso leva só texto (o quê, onde, quando); a imagem continua só dentro da revisão, com login.
 - Chega pelo mesmo canal em tempo real dos incidentes (consulta de 3 s como reserva). Operador não recebe.
 - Pendente: aviso fora do sistema (e-mail ou mensagem), que precisa decidir canal e destinatários.
+- Alerta e revisão mostram o **código do trabalhador** (ex.: FUNC-000001). O **nome** ainda não: o Incident guarda só o código, e o serviço de identidade usa outro sistema de perfis (não aceita o login do `epi_auth`). Decisão pendente: de onde vem o nome (ver conversa de 24/11).

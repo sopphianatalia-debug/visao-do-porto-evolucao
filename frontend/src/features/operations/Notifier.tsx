@@ -47,7 +47,7 @@ export function Notifier({ alerts, reviews, enabled, zoneName, onOpen }: { alert
     <div className="notifier" role="status" aria-live="assertive" data-testid="notifier">
       {alive.map(a => <div className="notifier-item" key={a.id}>
         <BellRing size={18} aria-hidden="true" />
-        <span><strong>Novo incidente: {a.title}</strong><small>{zoneName(a.zone)} · {a.camera} · {a.id}</small></span>
+        <span><strong>Novo incidente: {a.title}</strong><small>Trabalhador: {a.employee ?? 'não identificado'}</small><small>{zoneName(a.zone)} · {a.camera} · {a.id}</small></span>
         <button className="button primary" onClick={() => { onOpen(a); setFresh(f => f.filter(x => x.id !== a.id)) }}>Abrir</button>
         <button className="icon-button" aria-label="Dispensar aviso" onClick={() => setFresh(f => f.filter(x => x.id !== a.id))}>×</button>
       </div>)}

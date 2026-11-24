@@ -69,6 +69,7 @@ export function toAlert(i: ApiIncident, cameras: ApiCamera[]): Alert {
   const sector = cameras.find(c => c.camera_id === camId)?.sector ?? NO_SECTOR
   return {
     id: i.incident_id,
+    employee: i.employee_id ?? undefined,
     title: `EPI ausente: ${ppeLabel(i.ppe_type)}`,
     type: i.status === 'OPEN' ? 'Equipamento de proteção · aberto' : 'Equipamento de proteção · resolvido',
     severity: severityOf(i.severity),
