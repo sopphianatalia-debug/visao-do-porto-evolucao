@@ -298,3 +298,36 @@ test('operador acompanha em somente leitura: sem justificativa nem botões de de
   await expect(d.getByRole('button', { name: 'Confirmar', exact: true })).toHaveCount(0)
   await expect(d.getByRole('button', { name: 'Descartar' })).toHaveCount(0)
 })
+
+test('aviso ativo: supervisor vê incidente novo na hora (alerta, contador no título); operador não', async ({ page, browser }) => {
+  const inc = (id: string) => ({ incident_id: id, ppe_type: 'helmet', severity: 'HIGH', status: 'OPEN', reason: 'x', rule_id: 'R',
+    opened_at: '2026-11-23T14:32:00-03:00', duration_seconds: 1, source_cameras: ['CAM-PIER-01'], employee_id: 'F1', review_status: 'PENDING' })
+  const setup = async (p: Page, role: 'SUPERVISOR' | 'OPERADOR', list: () => unknown[]) => {
+    await p.addInitScript((r: string) => {
+      sessionStorage.setItem('sem-demo', '1'); localStorage.removeItem('visao-do-porto.demo'); localStorage.setItem('visao-do-porto.alert-sound', 'off')
+      sessionStorage.setItem('visao-do-porto.session.v1', JSON.stringify({ token: 'T', username: 'u', name: 'Pessoa', role: r }))
+    }, role)
+    await p.route('**/api/epi/incident/incidents', r => r.fulfill({ json: list() }))
+    await p.route('**/api/epi/tracker/cameras', r => r.fulfill({ json: [] }))
+    await p.route('**/api/epi/incident/incidents/*/evidence', r => r.fulfill({ json: [] }))
+  }
+  let items = [inc('INC-000001')]
+  await setup(page, 'SUPERVISOR', () => items)
+  await page.goto('/#painel')
+  await expect(page.getByText('Pendentes de revisão')).toBeVisible()
+  await expect(page.getByTestId('notifier').getByText(/Novo incidente/)).toHaveCount(0)        // o que já existia não é "novo"
+  items = [inc('INC-000002'), inc('INC-000001')]
+  await expect(page.getByTestId('notifier').getByText(/Novo incidente: EPI ausente: capacete/)).toBeVisible({ timeout: 8000 })
+  await expect(page).toHaveTitle(/^\(2\)/)
+  await page.getByTestId('notifier').getByRole('button', { name: 'Abrir' }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  const op = await browser.newPage({ baseURL: 'http://127.0.0.1:5173' })
+  let items2 = [inc('INC-000001')]
+  await setup(op, 'OPERADOR', () => items2)
+  await op.goto('/#painel')
+  await expect(op.getByText('Pendentes de revisão')).toBeVisible()
+  items2 = [inc('INC-000002'), inc('INC-000001')]
+  await op.waitForTimeout(4500)
+  await expect(op.getByTestId('notifier')).toHaveCount(0)
+  await op.close()
+})

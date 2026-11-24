@@ -4,6 +4,7 @@ import { AnalysisPage } from '../features/analysis/AnalysisPage'
 import { AlertsPage, Dashboard, HistoryPage, ReviewDialog, ZonesPage } from '../features/operations/Operations'
 import { DataGate, DataProvider, useData } from '../features/operations/DataContext'
 import { sendReview } from '../features/operations/live'
+import { Notifier } from '../features/operations/Notifier'
 import { AuthRequired, roleLabel } from '../features/auth/session'
 import { readReviews, reviewKey, type Alert, type Review } from '../features/operations/model'
 
@@ -26,7 +27,7 @@ export function App() {
 }
 
 function Shell() {
-  const { mode, reviews: serviceReviews, refresh, session, signOut } = useData()
+  const { mode, reviews: serviceReviews, refresh, session, signOut, alerts, zoneName } = useData()
   const live = mode === 'live'
   const [{ page, zone }, setRoute] = useState(readRoute)
   const [localReviews, setReviews] = useState(readReviews)
@@ -61,6 +62,7 @@ function Shell() {
       <p className="nav-label">OPERAÇÃO</p>
       <nav aria-label="Navegação principal">{pages.map(({ id, label, Icon }) => <a href={'#' + id} key={id} aria-current={page.id === id ? 'page' : undefined}><Icon size={18} /><span>{label}</span>{page.id === id && <ChevronRight className="nav-arrow" size={15} />}</a>)}</nav>
       <div className="sidebar-bottom">
+        <Notifier alerts={alerts} reviews={reviews} enabled={live && session?.role === 'SUPERVISOR'} zoneName={zoneName} onOpen={setActive} />
         {session && <div className="user-box"><span><strong>{session.name}</strong><small>{roleLabel[session.role]}</small></span><button className="text-button" onClick={signOut}>Sair</button></div>}<div className="sandbox-mark"><span className="site-indicator" aria-hidden="true" /><span><strong>Laboratório UNDB</strong><small>Piloto acadêmico</small></span></div></div>
     </aside>
     <div className="workspace">

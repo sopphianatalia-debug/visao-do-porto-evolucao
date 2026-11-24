@@ -69,3 +69,9 @@ Base: https://github.com/diegovitor90/visao-do-porto @ 65c5f23 (17/11/2026). O o
 - Com login, só o SUPERVISOR confirma, descarta ou marca evidência insuficiente (o operador recebe 403 no serviço e não vê os botões na tela).
 - O OPERADOR acompanha em leitura: fila de incidentes e evidência dos que ainda estão pendentes. Depois da decisão do supervisor, a imagem some para o operador.
 - Próximos passos combinados: vídeo ao vivo sob demanda só para o supervisor (sem gravar, com registro de acesso) e aviso ativo quando um incidente abre.
+
+### 8.3 Aviso ativo ao supervisor (dentro do sistema)
+- Só para o SUPERVISOR logado, no modo ao vivo: incidente novo aparece como alerta no canto da tela (com botão **Abrir**), som discreto (liga/desliga na barra lateral, lembrado no navegador) e contador de pendentes no título da aba, ex.: `(2) Visão do Porto`.
+- O que já existia ao abrir a tela não conta como novo. O aviso leva só texto (o quê, onde, quando); a imagem continua só dentro da revisão, com login.
+- Chega pelo mesmo canal em tempo real dos incidentes (consulta de 3 s como reserva). Operador não recebe.
+- Pendente: aviso fora do sistema (e-mail ou mensagem), que precisa decidir canal e destinatários.
