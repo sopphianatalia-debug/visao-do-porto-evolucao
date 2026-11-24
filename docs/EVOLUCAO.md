@@ -50,4 +50,4 @@ Base: https://github.com/diegovitor90/visao-do-porto @ 65c5f23 (17/11/2026). O o
 - Revisão: o revisor passa a ser o usuário logado (campo de nome some; o serviço ignora qualquer nome enviado). Barra lateral mostra nome, perfil e **Sair**. Sessão expirada (401) volta para o login.
 - Proxy novo: `/api/epi/auth` → `:8006` (`EPI_AUTH_TARGET`). 14 testes do front passam (inclui login com senha errada/certa, revisão com token e sair).
 - Ainda não há tela para o supervisor gerenciar usuários (a API existe; criar o primeiro pelo CLI do `epi_auth`).
-- A verificação com os serviços reais ligados (login + revisão pelo navegador) ficou para a próxima rodada.
+- Verificado ponta a ponta com `epi_auth`, Incident (`required`) e Tracker reais: senha errada recusada, operador entra e revisa, o serviço guarda `operador / OPERADOR / verificado`, e o supervisor sobrescreve.
